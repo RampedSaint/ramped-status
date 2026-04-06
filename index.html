@@ -213,8 +213,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
   color: var(--muted);
   margin-bottom: 4px;
 }
-.mc-progress-track { height: 2px; background: var(--surface3); border-radius: 1px; overflow: hidden; }
-.mc-progress-fill { height: 100%; border-radius: 1px; }
+.mc-progress-track { height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; }
+.mc-progress-fill { height: 100%; border-radius: 4px; }
 
 /* TOGGLE TABLE */
 .mc-toggle {
@@ -436,6 +436,8 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
   <!-- ══ PANEL GM ══ -->
   <div class="panel active" id="panel-gm">
 
+    <div class="summary-strip strip-5" id="summary-gm"></div>
+
     <div class="months-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-lime"></span>
@@ -443,8 +445,6 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
       </div>
       <div class="months-grid" id="months-gm"></div>
     </div>
-
-    <div class="summary-strip strip-5" id="summary-gm"></div>
 
     <div class="analysis-section">
       <div class="section-eyebrow">
@@ -476,6 +476,8 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
   <!-- ══ PANEL LIVE ══ -->
   <div class="panel" id="panel-live">
 
+    <div class="summary-strip strip-4" id="summary-live"></div>
+
     <div class="months-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-blue"></span>
@@ -483,8 +485,6 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
       </div>
       <div class="months-grid" id="months-live"></div>
     </div>
-
-    <div class="summary-strip strip-4" id="summary-live"></div>
 
     <div class="analysis-section">
       <div class="section-eyebrow">
@@ -615,13 +615,9 @@ function extractMonths(rows) {
   return months;
 }
 
-// Sort: current month first, then chronological for the rest
+// Sort: reverse chronological (most recent first)
 function sortMonthsDisplay(months) {
-  const curIdx = months.findIndex(m => m.name === CURRENT_MONTH);
-  if (curIdx < 0) return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
-  const current = months[curIdx];
-  const rest = months.filter((_,i) => i !== curIdx).sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
-  return [current, ...rest];
+  return [...months].sort((a,b) => MONTH_ORDER.indexOf(b.name) - MONTH_ORDER.indexOf(a.name));
 }
 
 // Chronological for charts
@@ -695,6 +691,17 @@ function renderGM(months, sorted) {
   const avPct = totalObj > 0 ? (totalGM / totalObj) * 100 : null;
   const avColor = avPct >= 100 ? 'lime' : avPct >= 70 ? 'orange' : 'orange';
 
+  // Compute trends (compare to previous month)
+  const chronoForTrend = sortChronological(months);
+  const trendMap = {};
+  for (let t = 1; t < chronoForTrend.length; t++) {
+    const prev = chronoForTrend[t-1].total?.gm || 0;
+    const curr = chronoForTrend[t].total?.gm || 0;
+    if (prev > 0 && curr > 0) {
+      trendMap[chronoForTrend[t].name] = curr > prev ? 'up' : curr < prev ? 'down' : 'flat';
+    }
+  }
+
   // Month cards
   document.getElementById('months-gm').innerHTML = sorted.map(m => {
     const isCurrent = m.name === CURRENT_MONTH;
@@ -733,7 +740,7 @@ function renderGM(months, sorted) {
           </div>
           <div class="kpi-block">
             <div class="kpi-lbl">GM</div>
-            <div class="kpi-num ${hasData ? (gmPct >= 100 ? 'lime' : 'orange') : 'muted'}">${fmt(gm)}</div>
+            <div class="kpi-num ${hasData ? (gmPct >= 100 ? 'lime' : 'orange') : 'muted'}">${fmt(gm)}${trendMap[m.name] === 'up' ? ' <span style="font-size:10px;color:var(--lime)">↑</span>' : trendMap[m.name] === 'down' ? ' <span style="font-size:10px;color:var(--orange)">↓</span>' : ''}</div>
           </div>
         </div>
         <div class="mc-kpis mc-kpis-2">
@@ -749,7 +756,7 @@ function renderGM(months, sorted) {
         ${hasData ? `
         <div class="mc-progress">
           <div class="mc-progress-meta">
-            <span>vs objetivo ${fmt(m.gmObj)}</span>
+            <span>${fmt(gm)} / ${fmt(m.gmObj)}</span>
             <span>${gmPct !== null ? Math.round(gmPct) + '%' : '—'}</span>
           </div>
           <div class="mc-progress-track">
@@ -803,6 +810,13 @@ function renderGM(months, sorted) {
     data: {
       labels: chrono.map(m => m.name),
       datasets: [
+        {
+          label: 'Booked',
+          data: chrono.map(m => m.total?.booked || 0),
+          backgroundColor: 'rgba(255,255,255,0.06)',
+          borderRadius: 4,
+          barPercentage: .55
+        },
         {
           label: 'GM',
           data: chrono.map(m => m.total?.gm || 0),
@@ -927,7 +941,7 @@ function renderLive(months, sorted, rollover) {
         ${hasData ? `
         <div class="mc-progress">
           <div class="mc-progress-meta">
-            <span>Ejecución</span>
+            <span>${fmt(live)} / ${fmt(booked)}</span>
             <span>${ep !== null ? Math.round(ep) + '%' : '—'}</span>
           </div>
           <div class="mc-progress-track">

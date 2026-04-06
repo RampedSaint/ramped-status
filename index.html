@@ -514,10 +514,14 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 </div>
 
 <script>
-const RAW_CSV = "CLIENTES ENERO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$12.026,$12.232,$2.202,$12.026,$14.434,$6.435,$7.999,65%\r\nBPLAY Branding,$0,$12.903,$2.323,$0,$15.226,$7.742,$7.484,58%\r\nBetano Branding,$0,$5.613,-,$0,$5.613,$1.217,$4.396,78%\r\nFlo LATAM,$30.000,$35.580,$8.895,$0,$44.475,$26.748,$17.727,50%\r\nWEEWOO,$0,$0,$0,$0,$0,$0,$0,#DIV/0!\r\nTOTAL = 8,$42.026,$66.328,$11.939,$12.026,$79.748,$42.142,$37.606,57%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,,,\r\nCLIENTES FEBRERO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.500,$27.592,$4.967,$0,$32.559,$23.264,$9.295,34%\r\nBPLAY Branding,$12.215,$9.530,$1.715,$0,$11.246,$5.888,$5.357,56%\r\nLearnwords,$4.800,$4.800,$1.200,$0,$6.000,$4.000,$2.000,42%\r\nFlo LATAM,$35.000,$33.800,$8.450,$19.000,$42.250,$25.967,$16.283,48%\r\nWEEWOO,$35.000,$34.650,$5.198,$9.900,$39.848,$28.425,$11.423,33%\r\nTOTAL = 8,$104.515,$110.372,$19.867,$28.900,$131.902,$87.544,$44.358,40%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,,,\r\nCLIENTES MARZO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.921,$47.288,$8.512,$47.288,$55.800,$35.197,$20.602,44%\r\nBPLAY Branding,$12.903,$13.047,$2.348,$13.047,$15.395,$9.211,$6.184,47%\r\nStake,$15.000,$18.950,$4.738,$18.950,$23.688,$13.700,$9.988,53%\r\nFlo LATAM,$35.000,$37.100,$9.275,$37.800,$46.375,$30.712,$15.663,42%\r\nFMMEDS,$10.000,$2.000,$400,$0,$2.400,$2.000,$400,20%\r\nWEEWOO,$34.700,$33.500,$5.025,$36.350,$38.525,$27.750,$10.775,32%\r\nTOTAL = 8,$125.524,$151.885,$30.298,$153.435,$182.182,$118.571,$63.611,42%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,RESTANTE,$13.611,\r\n,,,,,,,,\r\nCLIENTES ABRIL, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.921,$0,$0,$0,$0,,$0,#DIV/0!\r\nBPLAY Branding,$12.903,$0,$0,$0,$0,,$0,#DIV/0!\r\nStake,$15.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nFlo LATAM,$35.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nFMMEDS,$8.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nWEEWOO,$34.700,$0,$0,$0,$0,,$0,#DIV/0!\r\nTOTAL = 8,$123.524,$0,$0,$0,$0,$0,$0,#DIV/0!\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,RESTANTE,-$50.000,";
+const SHEET_ID = '1_7CkoRFvCZyCOfkt69Co6l8K1FAWw12J_E4K43EZfx8';
+const SHEET_GID = '59282509';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 
-const CURRENT_MONTH = 'Abril';
-const PREV_MONTH = 'Marzo';
+// Auto-detect current month from system date
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CURRENT_MONTH = MONTH_NAMES[new Date().getMonth()];
+const PREV_MONTH = MONTH_NAMES[(new Date().getMonth() + 11) % 12];
 
 document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
 
@@ -560,6 +564,18 @@ function parseCSV(text) {
 }
 
 function extractMonths(rows) {
+  // Detect if sheet has extra empty column at position 2 (Google Sheets format)
+  // by checking the header row for "BOOKED" position
+  let colOffset = 0;
+  for (const row of rows) {
+    if ((row[0] || '').match(/CLIENTES/i)) {
+      // If col 2 is empty and col 3 has "BOOKED", we have the extra column
+      if ((!row[2] || row[2].trim() === '') && row[3] && row[3].includes('BOOKED')) colOffset = 1;
+      break;
+    }
+  }
+  const C = { budget: 1, booked: 2 + colOffset, fee: 3 + colOffset, live: 4 + colOffset, bookedFee: 5 + colOffset, cost: 6 + colOffset, gm: 7 + colOffset, gmPct: 8 + colOffset };
+
   const months = []; let i = 0;
   while (i < rows.length) {
     const row = rows[i]; const header = row[0] || '';
@@ -572,13 +588,21 @@ function extractMonths(rows) {
         const r = rows[i]; const label = (r[0] || '').trim();
         if (!label || label.match(/CLIENTES\s+\w+/i)) break;
         if (label.toUpperCase().startsWith('TOTAL')) {
-          total = { budget: parseMoney(r[1]), booked: parseMoney(r[2]), fee: parseMoney(r[3]), live: parseMoney(r[4]), bookedFee: parseMoney(r[5]), cost: parseMoney(r[6]), gm: parseMoney(r[7]), gmPct: parsePercent(r[8]) };
+          total = { budget: parseMoney(r[C.budget]), booked: parseMoney(r[C.booked]), fee: parseMoney(r[C.fee]), live: parseMoney(r[C.live]), bookedFee: parseMoney(r[C.bookedFee]), cost: parseMoney(r[C.cost]), gm: parseMoney(r[C.gm]), gmPct: parsePercent(r[C.gmPct]) };
           i++; continue;
         }
-        if (label === '' && r[6] && r[6].toString().includes('GM OBJETIVO')) { gmObj = parseMoney(r[7]) || 50000; i++; continue; }
-        if (label === '' && r[6] && r[6].toString().includes('RESTANTE')) { i++; continue; }
+        if (label === '') {
+          // Detect GM OBJETIVO row: empty label, value ~50000 in GM column or cost column
+          const gmVal = parseMoney(r[C.gm]);
+          const costVal = parseMoney(r[C.cost]);
+          const anyText = (r[C.cost]||'').toString() + (r[C.gm]||'').toString();
+          if (anyText.includes('GM OBJETIVO') || anyText.includes('RESTANTE')) { if (anyText.includes('GM OBJETIVO')) gmObj = gmVal || costVal || 50000; i++; continue; }
+          if (gmVal === 50000 || costVal === 50000) { gmObj = 50000; i++; continue; }
+          if (gmVal && gmVal < 0) { i++; continue; } // RESTANTE row (negative)
+          i++; continue;
+        }
         if (label.startsWith('Cantidad') || label.startsWith('%') || label.startsWith('Difer') || label.startsWith('Objeti') || label.startsWith('Live')) break;
-        if (label) clients.push({ name: label, budget: parseMoney(r[1]), booked: parseMoney(r[2]), fee: parseMoney(r[3]), live: parseMoney(r[4]), gm: parseMoney(r[7]), gmPct: parsePercent(r[8]) });
+        if (label) clients.push({ name: label, budget: parseMoney(r[C.budget]), booked: parseMoney(r[C.booked]), fee: parseMoney(r[C.fee]), live: parseMoney(r[C.live]), gm: parseMoney(r[C.gm]), gmPct: parsePercent(r[C.gmPct]) });
         i++;
       }
       if (total || clients.length) months.push({ name: mn, clients, total, gmObj });
@@ -1002,12 +1026,26 @@ function renderLive(months, sorted, rollover) {
 }
 
 /* ── MAIN ── */
-const rows = parseCSV(RAW_CSV);
-const months = extractMonths(rows);
-const sorted = sortMonthsDisplay(months);
-const rollover = computeRollover(months);
-renderGM(months, sorted);
-renderLive(months, sorted, rollover);
+async function loadData() {
+  try {
+    document.getElementById('months-gm').innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center">Cargando datos...</div>';
+    const res = await fetch(SHEET_URL);
+    if (!res.ok) throw new Error(`Sheet error: ${res.status}`);
+    const csv = await res.text();
+    const rows = parseCSV(csv);
+    const months = extractMonths(rows);
+    if (months.length === 0) throw new Error('No se encontraron datos de meses');
+    const sorted = sortMonthsDisplay(months);
+    const rollover = computeRollover(months);
+    renderGM(months, sorted);
+    renderLive(months, sorted, rollover);
+    document.getElementById('lastUpdate').textContent = 'Actualizado: ' + new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric', hour:'2-digit', minute:'2-digit'});
+  } catch (err) {
+    console.error('Error loading sheet:', err);
+    document.getElementById('months-gm').innerHTML = `<div style="color:var(--red);padding:2rem;text-align:center">Error cargando datos: ${err.message}</div>`;
+  }
+}
+loadData();
 </script>
 </body>
 </html>

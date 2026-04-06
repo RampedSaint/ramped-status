@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ramped — Status 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface2: #1a1a1a;
+  --surface3: #222222;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #f0ede8;
+  --muted: #666660;
+  --muted2: #444440;
+  --lime: #c8f135;
+  --lime-dim: rgba(200,241,53,0.12);
+  --lime-dim2: rgba(200,241,53,0.06);
+  --orange: #ff6b2b;
+  --orange-dim: rgba(255,107,43,0.12);
+  --red: #e84040;
+  --red-dim: rgba(232,64,64,0.1);
+  --blue: #4d9de0;
+  --blue-dim: rgba(77,157,224,0.1);
+  --ok: #c8f135;
+  --warn: #ff6b2b;
+  --danger: #e84040;
+  --font: 'DM Sans', sans-serif;
+  --display: 'Bebas Neue', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+/* ── HEADER ── */
+.header {
+  padding: 2rem 2.5rem 0;
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border2);
+  padding-bottom: 1.25rem;
+}
+.header-left { display: flex; flex-direction: column; gap: 4px; }
+.wordmark {
+  font-family: var(--display);
+  font-size: 42px;
+  letter-spacing: .04em;
+  line-height: 1;
+  color: var(--lime);
+}
+.header-sub {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 300;
+}
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.header-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── TABS ── */
+.tabs-bar {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 2.5rem;
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  padding: 14px 20px;
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all .2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active-gm { color: var(--lime); border-bottom-color: var(--lime); }
+.tab-btn.active-live { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* ── SHELL ── */
+.shell { max-width: 1300px; margin: 0 auto; padding: 2rem 2.5rem 4rem; }
+
+/* ── PANELS ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── MONTHS ROW (top) ── */
+.months-section { margin-bottom: 2.5rem; }
+.section-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.eyebrow-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.dot-lime { background: var(--lime); }
+.dot-blue { background: var(--blue); }
+.dot-orange { background: var(--orange); }
+
+.months-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+/* ── MONTH CARD ── */
+.month-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.month-card:hover { border-color: var(--border2); }
+.month-card.is-current { border-color: var(--lime); }
+.month-card.is-current-live { border-color: var(--blue); }
+
+.mc-head {
+  padding: .75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.mc-head-gm { background: var(--lime-dim2); }
+.mc-head-live { background: var(--blue-dim); }
+.mc-head-current-gm { background: var(--lime-dim); }
+.mc-head-current-live { background: rgba(77,157,224,0.18); }
+
+.mc-name {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: .06em;
+  color: var(--text);
+}
+.mc-name.current-gm { color: var(--lime); }
+.mc-name.current-live { color: var(--blue); }
+
+.mc-pill {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.mc-pill.ok { background: rgba(200,241,53,.15); color: var(--lime); }
+.mc-pill.warn { background: rgba(255,107,43,.15); color: var(--orange); }
+.mc-pill.danger { background: rgba(232,64,64,.15); color: var(--red); }
+.mc-pill.neutral { background: var(--surface3); color: var(--muted); }
+
+.mc-body { padding: .875rem 1rem; }
+
+.mc-kpis { display: grid; gap: 8px; margin-bottom: 10px; }
+.mc-kpis-2 { grid-template-columns: 1fr 1fr; }
+.mc-kpis-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+.kpi-block {}
+.kpi-lbl {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.kpi-num {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+}
+.kpi-num.lime { color: var(--lime); }
+.kpi-num.orange { color: var(--orange); }
+.kpi-num.blue { color: var(--blue); }
+.kpi-num.muted { color: var(--muted); }
+.kpi-num.red { color: var(--red); }
+
+/* PROGRESS */
+.mc-progress { margin-top: 2px; }
+.mc-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-family: var(--mono);
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.mc-progress-track { height: 2px; background: var(--surface3); border-radius: 1px; overflow: hidden; }
+.mc-progress-fill { height: 100%; border-radius: 1px; }
+
+/* TOGGLE TABLE */
+.mc-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 7px 1rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all .15s;
+}
+.mc-toggle:hover { background: var(--surface2); color: var(--text); }
+
+.mc-detail { display: none; border-top: 1px solid var(--border); overflow-x: auto; }
+.mc-detail.open { display: block; }
+
+table.dt { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.dt thead th {
+  padding: 6px 10px;
+  text-align: right;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+table.dt thead th:first-child { text-align: left; }
+table.dt tbody td {
+  padding: 6px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+}
+table.dt tbody td:first-child { text-align: left; font-family: var(--font); font-size: 11px; font-weight: 400; }
+table.dt tbody tr:last-child td { border-bottom: none; font-weight: 500; background: var(--surface2); }
+table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
+
+/* ROLLOVER */
+.rollover-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.rollover-title {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 5px;
+}
+.rollover-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  padding: 2px 0;
+}
+.rollover-client { color: var(--text); opacity: .7; }
+.rollover-amt { font-family: var(--mono); font-size: 11px; color: var(--orange); }
+
+/* ── ANALYSIS SECTION ── */
+.analysis-section { margin-top: 2.5rem; }
+.analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.analysis-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+.analysis-card.full { grid-column: 1 / -1; }
+.ac-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
+.legend-dot { width: 7px; height: 7px; border-radius: 2px; }
+
+/* SUMMARY STRIP */
+.summary-strip {
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.strip-5 { grid-template-columns: repeat(5, 1fr); }
+.strip-4 { grid-template-columns: repeat(4, 1fr); }
+.strip-card {
+  background: var(--surface);
+  padding: 1rem 1.25rem;
+}
+.sc-lbl {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.sc-val {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+}
+.sc-val.lime { color: var(--lime); }
+.sc-val.orange { color: var(--orange); }
+.sc-val.blue { color: var(--blue); }
+.sc-sub { font-size: 10px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+
+/* ── HIGHLIGHTS ── */
+.highlights-section { margin-top: 2.5rem; }
+.highlights-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.highlight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.highlight-card.gold { border-color: rgba(200,241,53,.3); }
+.highlight-card.focus { border-color: rgba(77,157,224,.3); }
+.highlight-card.alert { border-color: rgba(255,107,43,.3); }
+.hc-tag {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tag-lime { color: var(--lime); }
+.tag-blue { color: var(--blue); }
+.tag-orange { color: var(--orange); }
+.hc-number {
+  font-family: var(--display);
+  font-size: 36px;
+  letter-spacing: .04em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.hc-number.lime { color: var(--lime); }
+.hc-number.blue { color: var(--blue); }
+.hc-number.orange { color: var(--orange); }
+.hc-label { font-size: 12px; color: var(--text); font-weight: 400; line-height: 1.4; }
+.hc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1000px) {
+  .months-grid { grid-template-columns: repeat(2, 1fr); }
+  .highlights-grid { grid-template-columns: repeat(2, 1fr); }
+  .analysis-grid { grid-template-columns: 1fr; }
+  .strip-5 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  .months-grid { grid-template-columns: 1fr; }
+  .highlights-grid { grid-template-columns: 1fr; }
+  .shell { padding: 1.5rem 1rem 3rem; }
+  .header { padding: 1.5rem 1rem 1rem; }
+  .tabs-bar { padding: 0 1rem; }
+  .strip-5, .strip-4 { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="wordmark">RAMPED</div>
+    <div class="header-sub">Status Report &nbsp;·&nbsp; 2026</div>
+  </div>
+  <div class="header-right">
+    <div class="header-date" id="lastUpdate"></div>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <button class="tab-btn active-gm" id="tab-gm" onclick="switchTab('gm')">Negocio · GM</button>
+  <button class="tab-btn" id="tab-live" onclick="switchTab('live')">Ejecución · Live</button>
+</div>
+
+<div class="shell">
+
+  <!-- ══ PANEL GM ══ -->
+  <div class="panel active" id="panel-gm">
+
+    <div class="months-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-lime"></span>
+        Meses
+      </div>
+      <div class="months-grid" id="months-gm"></div>
+    </div>
+
+    <div class="summary-strip strip-5" id="summary-gm"></div>
+
+    <div class="analysis-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-lime"></span>
+        Análisis
+      </div>
+      <div class="analysis-grid">
+        <div class="analysis-card full">
+          <div class="ac-label">Gross Margin mensual vs objetivo $50k</div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM mensual</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo</div>
+          </div>
+          <div style="position:relative;width:100%;height:200px;"><canvas id="chartGM"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlights-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-orange"></span>
+        Destacados
+      </div>
+      <div class="highlights-grid" id="highlights-gm"></div>
+    </div>
+
+  </div>
+
+  <!-- ══ PANEL LIVE ══ -->
+  <div class="panel" id="panel-live">
+
+    <div class="months-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-blue"></span>
+        Meses
+      </div>
+      <div class="months-grid" id="months-live"></div>
+    </div>
+
+    <div class="summary-strip strip-4" id="summary-live"></div>
+
+    <div class="analysis-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-blue"></span>
+        Análisis
+      </div>
+      <div class="analysis-grid">
+        <div class="analysis-card full">
+          <div class="ac-label">Booked vs Live por mes</div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>Live</div>
+          </div>
+          <div style="position:relative;width:100%;height:200px;"><canvas id="chartLive"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlights-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-orange"></span>
+        Destacados
+      </div>
+      <div class="highlights-grid" id="highlights-live"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const RAW_CSV = "CLIENTES ENERO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$12.026,$12.232,$2.202,$12.026,$14.434,$6.435,$7.999,65%\r\nBPLAY Branding,$0,$12.903,$2.323,$0,$15.226,$7.742,$7.484,58%\r\nBetano Branding,$0,$5.613,-,$0,$5.613,$1.217,$4.396,78%\r\nFlo LATAM,$30.000,$35.580,$8.895,$0,$44.475,$26.748,$17.727,50%\r\nWEEWOO,$0,$0,$0,$0,$0,$0,$0,#DIV/0!\r\nTOTAL = 8,$42.026,$66.328,$11.939,$12.026,$79.748,$42.142,$37.606,57%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,,,\r\nCLIENTES FEBRERO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.500,$27.592,$4.967,$0,$32.559,$23.264,$9.295,34%\r\nBPLAY Branding,$12.215,$9.530,$1.715,$0,$11.246,$5.888,$5.357,56%\r\nLearnwords,$4.800,$4.800,$1.200,$0,$6.000,$4.000,$2.000,42%\r\nFlo LATAM,$35.000,$33.800,$8.450,$19.000,$42.250,$25.967,$16.283,48%\r\nWEEWOO,$35.000,$34.650,$5.198,$9.900,$39.848,$28.425,$11.423,33%\r\nTOTAL = 8,$104.515,$110.372,$19.867,$28.900,$131.902,$87.544,$44.358,40%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,,,\r\nCLIENTES MARZO, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.921,$47.288,$8.512,$47.288,$55.800,$35.197,$20.602,44%\r\nBPLAY Branding,$12.903,$13.047,$2.348,$13.047,$15.395,$9.211,$6.184,47%\r\nStake,$15.000,$18.950,$4.738,$18.950,$23.688,$13.700,$9.988,53%\r\nFlo LATAM,$35.000,$37.100,$9.275,$37.800,$46.375,$30.712,$15.663,42%\r\nFMMEDS,$10.000,$2.000,$400,$0,$2.400,$2.000,$400,20%\r\nWEEWOO,$34.700,$33.500,$5.025,$36.350,$38.525,$27.750,$10.775,32%\r\nTOTAL = 8,$125.524,$151.885,$30.298,$153.435,$182.182,$118.571,$63.611,42%\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,RESTANTE,$13.611,\r\n,,,,,,,,\r\nCLIENTES ABRIL, BUDGET EXPECTED,BOOKED,FEE,LIVE,BOOKED + FEE,INTERNAL COST,GROSS MARGIN,GROSS MARGIN %\r\nBPLAY Perfo,$17.921,$0,$0,$0,$0,,$0,#DIV/0!\r\nBPLAY Branding,$12.903,$0,$0,$0,$0,,$0,#DIV/0!\r\nStake,$15.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nFlo LATAM,$35.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nFMMEDS,$8.000,$0,$0,$0,$0,,$0,#DIV/0!\r\nWEEWOO,$34.700,$0,$0,$0,$0,,$0,#DIV/0!\r\nTOTAL = 8,$123.524,$0,$0,$0,$0,$0,$0,#DIV/0!\r\n,,,,,,GM OBJETIVO,$50.000,\r\n,,,,,,RESTANTE,-$50.000,";
+
+const CURRENT_MONTH = 'Abril';
+const PREV_MONTH = 'Marzo';
+
+document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+/* ── PARSERS ── */
+function parseMoney(s) {
+  if (!s || s === '-' || s === '#DIV/0!') return null;
+  // Remove $, spaces, then replace dots used as thousands separators
+  let c = s.replace(/[$\s]/g, '');
+  // If format is like 12.026 (dot as thousands), remove dots
+  // If negative like -$50.000
+  const neg = c.startsWith('-');
+  c = c.replace('-','').replace(/\./g,'');
+  const n = parseFloat(c);
+  if (isNaN(n)) return null;
+  return neg ? -n : n;
+}
+function parsePercent(s) {
+  if (!s) return null;
+  const n = parseFloat(s.replace('%','').trim());
+  return isNaN(n) ? null : n;
+}
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  if (n === 0) return '$0';
+  return '$' + Math.round(Math.abs(n)).toLocaleString('es-AR');
+}
+function fmtK(n) { return n ? '$' + (n/1000).toFixed(0) + 'k' : '—'; }
+
+function parseCSV(text) {
+  return text.split(/\r?\n/).filter(l => l.trim()).map(l => {
+    const cols = []; let cur = '', inQ = false;
+    for (let i = 0; i < l.length; i++) {
+      if (l[i] === '"') { inQ = !inQ; continue; }
+      if (l[i] === ',' && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+      cur += l[i];
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function extractMonths(rows) {
+  const months = []; let i = 0;
+  while (i < rows.length) {
+    const row = rows[i]; const header = row[0] || '';
+    const match = header.match(/CLIENTES\s+(\w+)/i);
+    if (match) {
+      const mn = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+      const clients = []; let total = null, gmObj = 50000;
+      i++;
+      while (i < rows.length) {
+        const r = rows[i]; const label = (r[0] || '').trim();
+        if (!label || label.match(/CLIENTES\s+\w+/i)) break;
+        if (label.toUpperCase().startsWith('TOTAL')) {
+          total = { budget: parseMoney(r[1]), booked: parseMoney(r[2]), fee: parseMoney(r[3]), live: parseMoney(r[4]), bookedFee: parseMoney(r[5]), cost: parseMoney(r[6]), gm: parseMoney(r[7]), gmPct: parsePercent(r[8]) };
+          i++; continue;
+        }
+        if (label === '' && r[6] && r[6].toString().includes('GM OBJETIVO')) { gmObj = parseMoney(r[7]) || 50000; i++; continue; }
+        if (label === '' && r[6] && r[6].toString().includes('RESTANTE')) { i++; continue; }
+        if (label.startsWith('Cantidad') || label.startsWith('%') || label.startsWith('Difer') || label.startsWith('Objeti') || label.startsWith('Live')) break;
+        if (label) clients.push({ name: label, budget: parseMoney(r[1]), booked: parseMoney(r[2]), fee: parseMoney(r[3]), live: parseMoney(r[4]), gm: parseMoney(r[7]), gmPct: parsePercent(r[8]) });
+        i++;
+      }
+      if (total || clients.length) months.push({ name: mn, clients, total, gmObj });
+      continue;
+    }
+    i++;
+  }
+  return months;
+}
+
+// Sort: current month first, then chronological for the rest
+function sortMonthsDisplay(months) {
+  const order = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const curIdx = months.findIndex(m => m.name === CURRENT_MONTH);
+  if (curIdx < 0) return [...months].sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+  const current = months[curIdx];
+  const rest = months.filter((_,i) => i !== curIdx).sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+  return [current, ...rest];
+}
+
+// Chronological for charts
+function sortChronological(months) {
+  const order = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  return [...months].sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+}
+
+function computeRollover(months) {
+  const pastMonths = months.filter(m => m.name !== CURRENT_MONTH);
+  const rollover = {};
+  pastMonths.forEach(m => {
+    m.clients.forEach(c => {
+      const pending = (c.booked || 0) - (c.live || 0);
+      if (pending > 200) {
+        rollover[c.name] = (rollover[c.name] || 0) + pending;
+      }
+    });
+  });
+  return rollover;
+}
+
+function pillClass(p) {
+  if (p === null) return 'neutral';
+  if (p >= 100) return 'ok';
+  if (p >= 70) return 'warn';
+  return 'danger';
+}
+function pillLabel(p) { return p === null ? 'Sin datos' : Math.round(p) + '% obj.'; }
+function barFill(p) {
+  if (p === null) return 'var(--muted2)';
+  if (p >= 100) return 'var(--lime)';
+  if (p >= 70) return 'var(--orange)';
+  return 'var(--red)';
+}
+function execFill(p) {
+  if (p === null) return 'var(--muted2)';
+  if (p >= 80) return 'var(--lime)';
+  if (p >= 40) return 'var(--blue)';
+  return 'var(--orange)';
+}
+
+function toggleDetail(id, btn) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  btn.querySelector('.arrow').textContent = el.classList.contains('open') ? '↑' : '↓';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('active-gm','active-live'); });
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active-' + tab);
+}
+
+/* ── RENDER GM ── */
+function renderGM(months, sorted) {
+  const chrono = sortChronological(months);
+  const completedMonths = months.filter(m => m.total?.gm && m.total.gm > 0);
+  const totalGM = completedMonths.reduce((s,m) => s + (m.total?.gm || 0), 0);
+  const totalObj = completedMonths.reduce((s,m) => s + m.gmObj, 0);
+  const totalBooked = months.reduce((s,m) => s + (m.total?.booked || 0), 0);
+  const totalFee = months.reduce((s,m) => s + (m.total?.fee || 0), 0);
+  const totalBudget = months.reduce((s,m) => s + (m.total?.budget || 0), 0);
+  const avPct = totalObj > 0 ? (totalGM / totalObj) * 100 : null;
+  const avColor = avPct >= 100 ? 'lime' : avPct >= 70 ? 'orange' : 'orange';
+
+  // Month cards
+  document.getElementById('months-gm').innerHTML = sorted.map(m => {
+    const isCurrent = m.name === CURRENT_MONTH;
+    const gm = m.total?.gm || null;
+    const gmPct = gm && m.gmObj ? (gm / m.gmObj) * 100 : null;
+    const barW = gmPct !== null ? Math.min(gmPct, 100) : 0;
+    const id = 'gm_' + m.name.toLowerCase();
+    const hasData = m.total?.booked > 0;
+
+    const rows = m.clients.map(c => `
+      <tr>
+        <td>${c.name}</td>
+        <td>${fmt(c.budget)}</td>
+        <td>${fmt(c.booked)}</td>
+        <td>${fmt(c.fee)}</td>
+        <td>${fmt(c.gm)}</td>
+        <td>${c.gmPct !== null ? c.gmPct + '%' : '—'}</td>
+      </tr>`).join('');
+    const totRow = m.total ? `<tr><td>Total</td><td>${fmt(m.total.budget)}</td><td>${fmt(m.total.booked)}</td><td>${fmt(m.total.fee)}</td><td>${fmt(m.total.gm)}</td><td>${m.total.gmPct !== null ? m.total.gmPct + '%' : '—'}</td></tr>` : '';
+
+    return `
+    <div class="month-card ${isCurrent ? 'is-current' : ''}">
+      <div class="mc-head ${isCurrent ? 'mc-head-current-gm' : 'mc-head-gm'}">
+        <span class="mc-name ${isCurrent ? 'current-gm' : ''}">${m.name.toUpperCase()}</span>
+        <span class="mc-pill ${hasData ? pillClass(gmPct) : 'neutral'}">${hasData ? pillLabel(gmPct) : 'En curso'}</span>
+      </div>
+      <div class="mc-body">
+        <div class="mc-kpis mc-kpis-3">
+          <div class="kpi-block">
+            <div class="kpi-lbl">Booked</div>
+            <div class="kpi-num">${fmt(m.total?.booked)}</div>
+          </div>
+          <div class="kpi-block">
+            <div class="kpi-lbl">Fee</div>
+            <div class="kpi-num blue">${fmt(m.total?.fee)}</div>
+          </div>
+          <div class="kpi-block">
+            <div class="kpi-lbl">GM</div>
+            <div class="kpi-num ${hasData ? (gmPct >= 100 ? 'lime' : 'orange') : 'muted'}">${fmt(gm)}</div>
+          </div>
+        </div>
+        <div class="mc-kpis mc-kpis-2">
+          <div class="kpi-block">
+            <div class="kpi-lbl">Budget exp.</div>
+            <div class="kpi-num muted">${fmt(m.total?.budget)}</div>
+          </div>
+          <div class="kpi-block">
+            <div class="kpi-lbl">GM %</div>
+            <div class="kpi-num">${m.total?.gmPct != null ? m.total.gmPct + '%' : '—'}</div>
+          </div>
+        </div>
+        ${hasData ? `
+        <div class="mc-progress">
+          <div class="mc-progress-meta">
+            <span>vs objetivo ${fmt(m.gmObj)}</span>
+            <span>${gmPct !== null ? Math.round(gmPct) + '%' : '—'}</span>
+          </div>
+          <div class="mc-progress-track">
+            <div class="mc-progress-fill" style="width:${barW}%;background:${barFill(gmPct)}"></div>
+          </div>
+        </div>` : `<div style="font-size:10px;color:var(--muted);margin-top:6px;">Mes en curso — sin datos aún</div>`}
+      </div>
+      <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
+        <span>Clientes (${m.clients.length})</span><span class="arrow">↓</span>
+      </button>
+      <div class="mc-detail" id="${id}">
+        <table class="dt">
+          <thead><tr><th>Cliente</th><th>Budget</th><th>Booked</th><th>Fee</th><th>GM</th><th>GM%</th></tr></thead>
+          <tbody>${rows}${totRow}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Summary strip
+  document.getElementById('summary-gm').innerHTML = `
+    <div class="strip-card">
+      <div class="sc-lbl">GM Acumulada</div>
+      <div class="sc-val ${avColor}">${fmt(totalGM)}</div>
+      <div class="sc-sub">obj. ${fmt(totalObj)}</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Avance</div>
+      <div class="sc-val ${avColor}">${avPct !== null ? Math.round(avPct) + '%' : '—'}</div>
+      <div class="sc-sub">${completedMonths.length} meses cerrados</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Total Booked</div>
+      <div class="sc-val">${fmt(totalBooked)}</div>
+      <div class="sc-sub">contratos</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Total Fee</div>
+      <div class="sc-val blue">${fmt(totalFee)}</div>
+      <div class="sc-sub">comisiones</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Budget total</div>
+      <div class="sc-val">${fmt(totalBudget)}</div>
+      <div class="sc-sub">esperado</div>
+    </div>`;
+
+  // Chart
+  new Chart(document.getElementById('chartGM'), {
+    type: 'bar',
+    data: {
+      labels: chrono.map(m => m.name),
+      datasets: [
+        {
+          label: 'GM',
+          data: chrono.map(m => m.total?.gm || 0),
+          backgroundColor: chrono.map(m => {
+            const p = m.total?.gm && m.gmObj ? (m.total.gm / m.gmObj) * 100 : 0;
+            return p >= 100 ? '#c8f135' : p >= 70 ? '#ff6b2b' : p > 0 ? '#e84040' : 'rgba(255,255,255,0.07)';
+          }),
+          borderRadius: 4,
+          barPercentage: .55
+        },
+        {
+          label: 'Objetivo',
+          data: chrono.map(m => m.gmObj),
+          type: 'line',
+          borderColor: 'rgba(232,64,64,0.5)',
+          borderDash: [5, 3],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
+      }
+    }
+  });
+
+  // Highlights
+  const prevMonth = months.find(m => m.name === PREV_MONTH);
+  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
+
+  let topGMClient = null, topGMVal = 0;
+  if (prevMonth) {
+    prevMonth.clients.forEach(c => { if ((c.gm || 0) > topGMVal) { topGMVal = c.gm; topGMClient = c.name; } });
+  }
+
+  let topBudgetClient = null, topBudgetVal = 0;
+  if (currentMonth) {
+    currentMonth.clients.forEach(c => { if ((c.budget || 0) > topBudgetVal) { topBudgetVal = c.budget; topBudgetClient = c.name; } });
+  }
+
+  const gmGap = currentMonth ? currentMonth.gmObj - (currentMonth.total?.gm || 0) : null;
+
+  document.getElementById('highlights-gm').innerHTML = `
+    <div class="highlight-card gold">
+      <div class="hc-tag tag-lime">★ Mejor GM — ${PREV_MONTH}</div>
+      <div class="hc-number lime">${fmt(topGMVal)}</div>
+      <div class="hc-label">${topGMClient || '—'}</div>
+      <div class="hc-sub">Mayor gross margin del mes cerrado</div>
+    </div>
+    <div class="highlight-card focus">
+      <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
+      <div class="hc-number blue">${fmt(topBudgetVal)}</div>
+      <div class="hc-label">${topBudgetClient || '—'}</div>
+      <div class="hc-sub">Mayor budget esperado este mes</div>
+    </div>
+    <div class="highlight-card alert">
+      <div class="hc-tag tag-orange">⚡ Gap GM — ${CURRENT_MONTH}</div>
+      <div class="hc-number orange">${gmGap !== null ? fmt(gmGap) : '—'}</div>
+      <div class="hc-label">Por cerrar para alcanzar objetivo</div>
+      <div class="hc-sub">Objetivo ${fmt(currentMonth?.gmObj)}</div>
+    </div>`;
+}
+
+/* ── RENDER LIVE ── */
+function renderLive(months, sorted, rollover) {
+  const chrono = sortChronological(months);
+  const completedMonths = months.filter(m => m.total?.booked > 0);
+  const totalBooked = completedMonths.reduce((s,m) => s + (m.total?.booked || 0), 0);
+  const totalLive = completedMonths.reduce((s,m) => s + (m.total?.live || 0), 0);
+  const totalPending = totalBooked - totalLive;
+  const execPct = totalBooked > 0 ? (totalLive / totalBooked) * 100 : null;
+
+  // Month cards
+  document.getElementById('months-live').innerHTML = sorted.map(m => {
+    const isCurrent = m.name === CURRENT_MONTH;
+    const booked = m.total?.booked || null;
+    const live = m.total?.live || null;
+    const ep = booked && live !== null ? (live / booked) * 100 : null;
+    const barW = ep !== null ? Math.min(ep, 100) : 0;
+    const id = 'live_' + m.name.toLowerCase();
+    const hasData = booked > 0;
+    const rolloverItems = isCurrent ? Object.entries(rollover).filter(([,v]) => v > 200) : [];
+
+    const rows = m.clients.map(c => {
+      const pend = (c.booked || 0) - (c.live || 0);
+      return `<tr>
+        <td>${c.name}</td>
+        <td>${fmt(c.booked)}</td>
+        <td>${fmt(c.live)}</td>
+        <td style="color:${pend > 500 ? 'var(--orange)' : 'var(--muted)'}">${fmt(pend)}</td>
+      </tr>`;
+    }).join('');
+    const totRow = m.total ? `<tr><td>Total</td><td>${fmt(m.total.booked)}</td><td>${fmt(m.total.live)}</td><td>${fmt((m.total.booked||0)-(m.total.live||0))}</td></tr>` : '';
+
+    const rolloverHTML = rolloverItems.length > 0 ? `
+      <div class="rollover-block">
+        <div class="rollover-title">Rollover de meses anteriores</div>
+        ${rolloverItems.map(([name, val]) => `
+          <div class="rollover-row">
+            <span class="rollover-client">${name}</span>
+            <span class="rollover-amt">${fmt(val)}</span>
+          </div>`).join('')}
+      </div>` : '';
+
+    return `
+    <div class="month-card ${isCurrent ? 'is-current-live' : ''}">
+      <div class="mc-head ${isCurrent ? 'mc-head-current-live' : 'mc-head-live'}">
+        <span class="mc-name ${isCurrent ? 'current-live' : ''}">${m.name.toUpperCase()}</span>
+        ${isCurrent ? '<span class="mc-pill neutral">Mes actual</span>' : `<span class="mc-pill ${pillClass(ep)}">${hasData ? Math.round(ep||0)+'% ejec.' : 'Sin datos'}</span>`}
+      </div>
+      <div class="mc-body">
+        <div class="mc-kpis mc-kpis-2">
+          <div class="kpi-block">
+            <div class="kpi-lbl">Booked</div>
+            <div class="kpi-num blue">${fmt(booked)}</div>
+          </div>
+          <div class="kpi-block">
+            <div class="kpi-lbl">Live</div>
+            <div class="kpi-num lime">${fmt(live)}</div>
+          </div>
+        </div>
+        ${hasData ? `
+        <div class="mc-progress">
+          <div class="mc-progress-meta">
+            <span>Ejecución</span>
+            <span>${ep !== null ? Math.round(ep) + '%' : '—'}</span>
+          </div>
+          <div class="mc-progress-track">
+            <div class="mc-progress-fill" style="width:${barW}%;background:${execFill(ep)}"></div>
+          </div>
+        </div>` : `<div style="font-size:10px;color:var(--muted);margin-top:6px;">Mes en curso — sin datos aún</div>`}
+        ${rolloverHTML}
+      </div>
+      <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
+        <span>Clientes (${m.clients.length})</span><span class="arrow">↓</span>
+      </button>
+      <div class="mc-detail" id="${id}">
+        <table class="dt">
+          <thead><tr><th>Cliente</th><th>Booked</th><th>Live</th><th>Pendiente</th></tr></thead>
+          <tbody>${rows}${totRow}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Summary strip
+  document.getElementById('summary-live').innerHTML = `
+    <div class="strip-card">
+      <div class="sc-lbl">Total Booked</div>
+      <div class="sc-val blue">${fmt(totalBooked)}</div>
+      <div class="sc-sub">comprometido</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Total Live</div>
+      <div class="sc-val lime">${fmt(totalLive)}</div>
+      <div class="sc-sub">ejecutado</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Pendiente</div>
+      <div class="sc-val orange">${fmt(totalPending)}</div>
+      <div class="sc-sub">por ejecutar</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Ejecución global</div>
+      <div class="sc-val ${execPct >= 80 ? 'lime' : 'orange'}">${execPct !== null ? Math.round(execPct) + '%' : '—'}</div>
+      <div class="sc-sub">booked → live</div>
+    </div>`;
+
+  // Chart
+  new Chart(document.getElementById('chartLive'), {
+    type: 'bar',
+    data: {
+      labels: chrono.map(m => m.name),
+      datasets: [
+        { label: 'Booked', data: chrono.map(m => m.total?.booked || 0), backgroundColor: '#4d9de0', borderRadius: 4, barPercentage: .7 },
+        { label: 'Live', data: chrono.map(m => m.total?.live || 0), backgroundColor: '#c8f135', borderRadius: 4, barPercentage: .7 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
+      }
+    }
+  });
+
+  // Highlights live
+  const prevMonth = months.find(m => m.name === PREV_MONTH);
+  let topLiveClient = null, topLiveVal = 0;
+  if (prevMonth) {
+    prevMonth.clients.forEach(c => { if ((c.live || 0) > topLiveVal) { topLiveVal = c.live; topLiveClient = c.name; } });
+  }
+
+  const totalRollover = Object.values(rollover).reduce((s,v) => s+v, 0);
+  const rolloverCount = Object.keys(rollover).length;
+
+  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
+  const topBudgetClient = currentMonth?.clients.reduce((best, c) => (c.budget||0) > (best?.budget||0) ? c : best, null);
+
+  document.getElementById('highlights-live').innerHTML = `
+    <div class="highlight-card gold">
+      <div class="hc-tag tag-lime">★ Mayor Live — ${PREV_MONTH}</div>
+      <div class="hc-number lime">${fmt(topLiveVal)}</div>
+      <div class="hc-label">${topLiveClient || '—'}</div>
+      <div class="hc-sub">Mayor ejecución de contenidos del mes</div>
+    </div>
+    <div class="highlight-card alert">
+      <div class="hc-tag tag-orange">⚡ Rollover pendiente</div>
+      <div class="hc-number orange">${fmt(totalRollover)}</div>
+      <div class="hc-label">${rolloverCount} cliente${rolloverCount !== 1 ? 's' : ''} con contenido pendiente</div>
+      <div class="hc-sub">Arrastre de meses anteriores</div>
+    </div>
+    <div class="highlight-card focus">
+      <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
+      <div class="hc-number blue">${fmt(topBudgetClient?.budget)}</div>
+      <div class="hc-label">${topBudgetClient?.name || '—'}</div>
+      <div class="hc-sub">Mayor presupuesto a ejecutar este mes</div>
+    </div>`;
+}
+
+/* ── MAIN ── */
+const rows = parseCSV(RAW_CSV);
+const months = extractMonths(rows);
+const sorted = sortMonthsDisplay(months);
+const rollover = computeRollover(months);
+renderGM(months, sorted);
+renderLive(months, sorted, rollover);
+</script>
+</body>
+</html>

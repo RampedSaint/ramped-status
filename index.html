@@ -358,7 +358,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 
 /* ── HIGHLIGHTS ── */
 .highlights-section { margin-top: 2.5rem; }
-.highlights-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.highlights-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .highlight-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -395,6 +395,14 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .hc-number.orange { color: var(--orange); }
 .hc-label { font-size: 12px; color: var(--text); font-weight: 400; line-height: 1.4; }
 .hc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+
+.refresh-btn { background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-size:16px; width:32px; height:32px; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; }
+.refresh-btn:hover { color:var(--lime); border-color:var(--lime); }
+
+.filter-bar { max-width:1300px; margin:0 auto; padding:12px 2.5rem; display:flex; gap:6px; }
+.filter-btn { padding:6px 14px; font-family:var(--font); font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--muted); transition:all .2s; }
+.filter-btn:hover { color:var(--text); border-color:var(--border2); }
+.filter-btn.active { background:var(--lime-dim); color:var(--lime); border-color:rgba(200,241,53,.25); }
 
 .chart-wrap { position: relative; width: 100%; height: 200px; }
 .chart-wrap-lg { position: relative; width: 100%; height: 260px; }
@@ -447,6 +455,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
     <div class="header-sub">Status Report &nbsp;·&nbsp; 2026</div>
   </div>
   <div class="header-right">
+    <button class="refresh-btn" onclick="loadData()" title="Actualizar datos">&#8635;</button>
     <div class="header-date" id="lastUpdate"></div>
   </div>
 </div>
@@ -454,6 +463,14 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 <div class="tabs-bar">
   <button class="tab-btn active-gm" id="tab-gm" onclick="switchTab('gm')">Negocio · GM</button>
   <button class="tab-btn" id="tab-live" onclick="switchTab('live')">Ejecución · Live</button>
+</div>
+
+<div class="filter-bar" id="filterBar">
+  <button class="filter-btn active" data-period="all" onclick="setFilter('all',this)">Año 2026</button>
+  <button class="filter-btn" data-period="q1" onclick="setFilter('q1',this)">Q1</button>
+  <button class="filter-btn" data-period="q2" onclick="setFilter('q2',this)">Q2</button>
+  <button class="filter-btn" data-period="q3" onclick="setFilter('q3',this)">Q3</button>
+  <button class="filter-btn" data-period="q4" onclick="setFilter('q4',this)">Q4</button>
 </div>
 
 <div class="shell">
@@ -556,17 +573,9 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
     <div class="analysis-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-blue"></span>
-        Booked vs Live por Mes
+        Ejecución por Mes
       </div>
-      <div class="analysis-grid">
-        <div class="analysis-card full">
-          <div class="chart-legend">
-            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>Live</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chartLive"></canvas></div>
-        </div>
-      </div>
+      <div id="exec-bars"></div>
     </div>
 
     <div class="highlights-section">
@@ -1022,6 +1031,10 @@ function renderGM(months, sorted) {
 
   const gmGap = currentMonth ? currentMonth.gmObj - (currentMonth.total?.gm || 0) : null;
 
+  const worstGMPct = prevMonth?.clients
+    .filter(c => (c.booked || 0) > 0 && c.gmPct !== null)
+    .sort((a, b) => (a.gmPct || 0) - (b.gmPct || 0))[0] || null;
+
   document.getElementById('highlights-gm').innerHTML = `
     <div class="highlight-card gold">
       <div class="hc-tag tag-lime">★ Mejor GM — ${PREV_MONTH}</div>
@@ -1040,34 +1053,48 @@ function renderGM(months, sorted) {
       <div class="hc-number orange">${gmGap !== null ? fmt(gmGap) : '—'}</div>
       <div class="hc-label">Por cerrar para alcanzar objetivo</div>
       <div class="hc-sub">Objetivo ${fmt(currentMonth?.gmObj)}</div>
+    </div>
+    <div class="highlight-card" style="border-color:rgba(232,64,64,.3)">
+      <div class="hc-tag" style="color:var(--red)">⚠ Menor GM% — ${PREV_MONTH}</div>
+      <div class="hc-number" style="color:var(--red)">${worstGMPct ? worstGMPct.gmPct + '%' : '—'}</div>
+      <div class="hc-label">${worstGMPct?.name || '—'}</div>
+      <div class="hc-sub">Peor margen del mes cerrado</div>
     </div>`;
 
   // Top Accounts
   const accountMap = {};
   months.forEach(m => {
     m.clients.forEach(c => {
-      if (!accountMap[c.name]) accountMap[c.name] = { booked: 0, fee: 0, gm: 0, months: 0 };
+      if (!accountMap[c.name]) accountMap[c.name] = { booked: 0, fee: 0, gm: 0, months: 0, gmByMonth: [] };
       accountMap[c.name].booked += (c.booked || 0);
       accountMap[c.name].fee += (c.fee || 0);
       accountMap[c.name].gm += (c.gm || 0);
-      if ((c.booked || 0) > 0) accountMap[c.name].months++;
+      if ((c.booked || 0) > 0) {
+        accountMap[c.name].months++;
+        accountMap[c.name].gmByMonth.push(c.gm || 0);
+      }
     });
   });
   const topAccounts = Object.entries(accountMap)
-    .map(([name, d]) => ({ name, ...d }))
+    .map(([name, d]) => {
+      const gmPct = d.booked > 0 ? Math.round((d.gm / d.booked) * 100) : 0;
+      const trend = d.gmByMonth.length >= 2 ? (d.gmByMonth[d.gmByMonth.length-1] > d.gmByMonth[d.gmByMonth.length-2] ? 'up' : d.gmByMonth[d.gmByMonth.length-1] < d.gmByMonth[d.gmByMonth.length-2] ? 'down' : 'flat') : 'na';
+      return { name, ...d, gmPct, trend };
+    })
     .filter(a => a.booked > 0)
     .sort((a, b) => b.gm - a.gm);
   const maxGM = topAccounts[0]?.gm || 1;
 
   document.getElementById('top-accounts').innerHTML = `
     <table class="dt">
-      <thead><tr><th>Cliente</th><th>Booked</th><th>Fee</th><th>GM Total</th><th>Meses</th><th></th></tr></thead>
+      <thead><tr><th>Cliente</th><th>Booked</th><th>GM Total</th><th>GM%</th><th>Trend</th><th>Meses</th><th></th></tr></thead>
       <tbody>${topAccounts.map(a => `
         <tr>
           <td><strong>${a.name}</strong></td>
           <td>${fmt(a.booked)}</td>
-          <td>${fmt(a.fee)}</td>
           <td style="color:var(--lime);font-weight:600">${fmt(a.gm)}</td>
+          <td style="color:${a.gmPct >= 50 ? 'var(--lime)' : a.gmPct >= 30 ? 'var(--orange)' : 'var(--red)'};font-weight:600">${a.gmPct}%</td>
+          <td>${a.trend === 'up' ? '<span style="color:var(--lime)">&#8593;</span>' : a.trend === 'down' ? '<span style="color:var(--orange)">&#8595;</span>' : '<span style="color:var(--muted)">&mdash;</span>'}</td>
           <td>${a.months}</td>
           <td style="width:100px"><div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${Math.round((a.gm/maxGM)*100)}%;background:var(--lime);border-radius:2px"></div></div></td>
         </tr>`).join('')}
@@ -1226,25 +1253,22 @@ function renderLive(months, sorted, rollover) {
     }
   });
 
-  // ── Booked vs Live por mes ──
-  new Chart(document.getElementById('chartLive'), {
-    type: 'bar',
-    data: {
-      labels: chrono.map(m => m.name),
-      datasets: [
-        { label: 'Booked', data: chrono.map(m => m.total?.booked || 0), backgroundColor: '#4d9de0', borderRadius: 4, barPercentage: .7 },
-        { label: 'Live', data: chrono.map(m => m.total?.live || 0), backgroundColor: '#c8f135', borderRadius: 4, barPercentage: .7 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
-      }
-    }
-  });
+  // Execution % bars
+  const execBarsHTML = chrono.filter(m => m.total?.booked > 0).map(m => {
+    const booked = m.total?.booked || 0;
+    const live = m.total?.live || 0;
+    const pct = booked > 0 ? Math.round((live / booked) * 100) : 0;
+    const color = pct >= 100 ? 'var(--lime)' : pct >= 70 ? 'var(--blue)' : 'var(--orange)';
+    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div style="width:60px;font-size:11px;font-weight:600;color:var(--muted);text-align:right">${m.name.slice(0,3).toUpperCase()}</div>
+      <div style="flex:1;height:24px;background:var(--surface3);border-radius:4px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${color};border-radius:4px;transition:width .5s"></div>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:${pct >= 50 ? 'var(--bg)' : 'var(--text)'}">${pct}%</span>
+      </div>
+      <div style="width:80px;font-size:10px;color:var(--muted)">${fmt(live)} / ${fmt(booked)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('exec-bars').innerHTML = execBarsHTML || '<div style="color:var(--muted);font-size:12px">Sin datos</div>';
 
   // Highlights live
   const topLive = findTopClient(prevMonth?.clients, 'live');
@@ -1275,6 +1299,39 @@ function renderLive(months, sorted, rollover) {
     </div>`;
 }
 
+/* ── QUARTER FILTER ── */
+const QUARTERS = { q1: ['Enero','Febrero','Marzo'], q2: ['Abril','Mayo','Junio'], q3: ['Julio','Agosto','Septiembre'], q4: ['Octubre','Noviembre','Diciembre'] };
+let currentFilter = 'all';
+
+function setFilter(period, btn) {
+  currentFilter = period;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (window._allMonths) renderAll(window._allMonths);
+}
+
+function filterMonths(months) {
+  if (currentFilter === 'all') return months;
+  const allowed = QUARTERS[currentFilter];
+  return months.filter(m => allowed.includes(m.name));
+}
+
+function renderAll(allMonths) {
+  const months = filterMonths(allMonths);
+  if (months.length === 0) {
+    document.getElementById('months-gm').innerHTML = '<div style="color:var(--muted);padding:2rem;text-align:center">Sin datos para este período</div>';
+    return;
+  }
+  const sorted = sortMonthsDisplay(months);
+  const rollover = computeRollover(allMonths);
+
+  // Destroy existing charts before re-rendering
+  Object.values(Chart.instances || {}).forEach(c => c.destroy());
+
+  renderGM(months, sorted);
+  renderLive(months, sorted, rollover);
+}
+
 /* ── MAIN ── */
 async function loadData() {
   try {
@@ -1285,11 +1342,14 @@ async function loadData() {
     const rows = parseCSV(csv);
     const months = extractMonths(rows);
     if (months.length === 0) throw new Error('No se encontraron datos de meses');
-    const sorted = sortMonthsDisplay(months);
-    const rollover = computeRollover(months);
-    renderGM(months, sorted);
-    renderLive(months, sorted, rollover);
+    window._allMonths = months;
+    renderAll(months);
     document.getElementById('lastUpdate').textContent = 'Actualizado: ' + new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+    // Auto-refresh every 5 minutes
+    if (!window._refreshInterval) {
+      window._refreshInterval = setInterval(loadData, 5 * 60 * 1000);
+    }
   } catch (err) {
     console.error('Error loading sheet:', err);
     document.getElementById('months-gm').innerHTML = `<div style="color:var(--red);padding:2rem;text-align:center">Error cargando datos: ${err.message}</div>`;

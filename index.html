@@ -237,6 +237,8 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
   transition: all .15s;
 }
 .mc-toggle:hover { background: var(--surface2); color: var(--text); }
+.arrow { font-size: 11px; color: var(--muted); transition: color .2s; }
+.mc-toggle:hover .arrow { color: var(--text); }
 
 .mc-detail { display: none; border-top: 1px solid var(--border); overflow-x: auto; }
 .mc-detail.open { display: block; }
@@ -699,10 +701,6 @@ function sortMonthsDisplay(months) {
   return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
 }
 
-// Chronological for charts
-function sortChronological(months) {
-  return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
-}
 
 function computeRollover(months) {
   const pastMonths = months.filter(m => m.name !== CURRENT_MONTH);
@@ -764,7 +762,7 @@ function openClientModal(monthName, clients, total, type) {
     return `<tr><td>${c.name}</td><td>${fmt(c.booked)}</td><td>${fmt(c.live)}</td><td style="color:${pend > 500 ? 'var(--orange)' : 'var(--muted)'}">${fmt(pend)}</td></tr>`;
   }).join('');
   const totRow = total ? (isGM
-    ? `<tr style="border-top:2px solid var(--border2)"><td><strong>Total</strong></td><td>${fmt(total.budget)}</td><td>${fmt(total.booked)}</td><td>${fmt(total.fee)}</td><td><strong>${fmt(total.gm)}</strong></td><td>${total.gmPct != null ? total.gmPct + '%' : '—'}</td></tr>`
+    ? `<tr style="border-top:2px solid var(--border2)"><td><strong>Total</strong></td><td>${fmt(total.budget)}</td><td>${fmt(total.booked)}</td><td>${fmt(total.fee)}</td><td><strong>${fmt(total.gm)}</strong></td><td>${total.gmPct !== null ? total.gmPct + '%' : '—'}</td></tr>`
     : `<tr style="border-top:2px solid var(--border2)"><td><strong>Total</strong></td><td>${fmt(total.booked)}</td><td>${fmt(total.live)}</td><td><strong>${fmt((total.booked||0)-(total.live||0))}</strong></td></tr>`)
     : '';
   document.getElementById('modalBody').innerHTML = `<table class="dt">${headers}<tbody>${rows}${totRow}</tbody></table>`;
@@ -777,7 +775,7 @@ function closeModal() {
 /* ── RENDER GM ── */
 function renderGM(months, sorted) {
   window._months = months;
-  const chrono = sortChronological(months);
+  const chrono = sortMonthsDisplay(months);
   const completedMonths = months.filter(m => m.total?.gm && m.total.gm > 0);
   const totalGM = completedMonths.reduce((s,m) => s + (m.total?.gm || 0), 0);
   const totalObj = completedMonths.reduce((s,m) => s + m.gmObj, 0);
@@ -785,10 +783,10 @@ function renderGM(months, sorted) {
   const totalFee = months.reduce((s,m) => s + (m.total?.fee || 0), 0);
   const totalBudget = months.reduce((s,m) => s + (m.total?.budget || 0), 0);
   const avPct = totalObj > 0 ? (totalGM / totalObj) * 100 : null;
-  const avColor = avPct >= 100 ? 'lime' : avPct >= 70 ? 'orange' : 'orange';
+  const avColor = avPct >= 100 ? 'lime' : avPct >= 70 ? 'orange' : 'red';
 
   // Compute trends (compare to previous month)
-  const chronoForTrend = sortChronological(months);
+  const chronoForTrend = sortMonthsDisplay(months);
   const trendMap = {};
   for (let t = 1; t < chronoForTrend.length; t++) {
     const prev = chronoForTrend[t-1].total?.gm || 0;
@@ -804,7 +802,6 @@ function renderGM(months, sorted) {
     const gm = m.total?.gm || null;
     const gmPct = gm && m.gmObj ? (gm / m.gmObj) * 100 : null;
     const barW = gmPct !== null ? Math.min(gmPct, 100) : 0;
-    const id = 'gm_' + m.name.toLowerCase();
     const hasData = m.total?.booked > 0;
 
     return `
@@ -835,7 +832,7 @@ function renderGM(months, sorted) {
           </div>
           <div class="kpi-block">
             <div class="kpi-lbl">GM %</div>
-            <div class="kpi-num">${m.total?.gmPct != null ? m.total.gmPct + '%' : '—'}</div>
+            <div class="kpi-num">${m.total?.gmPct !== null ? m.total.gmPct + '%' : '—'}</div>
           </div>
         </div>
         ${hasData ? `
@@ -1080,7 +1077,9 @@ function renderGM(months, sorted) {
 
 /* ── RENDER LIVE ── */
 function renderLive(months, sorted, rollover) {
-  const chrono = sortChronological(months);
+  const chrono = sortMonthsDisplay(months);
+  const prevMonth = months.find(m => m.name === PREV_MONTH);
+  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
   const completedMonths = months.filter(m => m.total?.booked > 0);
   const totalBooked = completedMonths.reduce((s,m) => s + (m.total?.booked || 0), 0);
   const totalLive = completedMonths.reduce((s,m) => s + (m.total?.live || 0), 0);
@@ -1092,9 +1091,8 @@ function renderLive(months, sorted, rollover) {
     const isCurrent = m.name === CURRENT_MONTH;
     const booked = m.total?.booked || null;
     const live = m.total?.live || null;
-    const ep = booked && live !== null ? (live / booked) * 100 : null;
+    const ep = booked > 0 && live !== null ? (live / booked) * 100 : null;
     const barW = ep !== null ? Math.min(ep, 100) : 0;
-    const id = 'live_' + m.name.toLowerCase();
     const hasData = booked > 0;
     const rolloverItems = isCurrent ? Object.entries(rollover).filter(([,v]) => v > 200) : [];
 
@@ -1249,13 +1247,11 @@ function renderLive(months, sorted, rollover) {
   });
 
   // Highlights live
-  const prevMonth = months.find(m => m.name === PREV_MONTH);
   const topLive = findTopClient(prevMonth?.clients, 'live');
 
   const totalRollover = Object.values(rollover).reduce((s,v) => s+v, 0);
   const rolloverCount = Object.keys(rollover).length;
 
-  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
   const topBudget = findTopClient(currentMonth?.clients, 'budget');
 
   document.getElementById('highlights-live').innerHTML = `

@@ -395,7 +395,16 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .hc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
 
 .chart-wrap { position: relative; width: 100%; height: 200px; }
+.chart-wrap-lg { position: relative; width: 100%; height: 260px; }
 .no-data-msg { font-size: 10px; color: var(--muted); margin-top: 6px; }
+.gap-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 3px; margin-top: 5px; font-weight: 500; }
+.gap-tag.ok { background: var(--lime-dim); color: var(--lime); }
+.gap-tag.warn { background: var(--orange-dim); color: var(--orange); }
+.gap-tag.bad { background: var(--red-dim); color: var(--red); }
+.gap-tag.neutral { background: var(--surface3); color: var(--muted); }
+.cmp-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.cmp-title { font-size: 9px; font-weight: 500; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+.cmp-stat { font-family: var(--mono); font-size: 12px; color: var(--text); }
 
 /* ── MODAL ── */
 .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.75); z-index:1000; backdrop-filter:blur(4px); align-items:center; justify-content:center; }
@@ -453,30 +462,46 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
     <div class="summary-strip strip-5" id="summary-gm"></div>
     <div id="alert-gm" style="display:none"></div>
 
+    <div class="analysis-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-lime"></span>
+        Comparaciones Clave
+      </div>
+      <div class="analysis-grid">
+        <div class="analysis-card">
+          <div class="cmp-header">
+            <span class="cmp-title">Revenue Expected vs Booked + Fee</span>
+            <span class="cmp-stat" id="gm-cmp-rev-stat"></span>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15)"></div>Budget esperado</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked + Fee</div>
+          </div>
+          <div class="chart-wrap"><canvas id="chartBudgetBooked"></canvas></div>
+          <div id="gm-cmp-rev-gap" style="margin-top:8px"></div>
+        </div>
+        <div class="analysis-card">
+          <div class="cmp-header">
+            <span class="cmp-title">GM Objetivo vs Real</span>
+            <span class="cmp-stat" id="gm-cmp-gm-stat"></span>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM Real</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo $50k</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>GM%</div>
+          </div>
+          <div class="chart-wrap"><canvas id="chartGM"></canvas></div>
+          <div id="gm-cmp-gm-gap" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="months-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-lime"></span>
         Meses
       </div>
       <div class="months-grid" id="months-gm"></div>
-    </div>
-
-    <div class="analysis-section">
-      <div class="section-eyebrow">
-        <span class="eyebrow-dot dot-lime"></span>
-        Análisis
-      </div>
-      <div class="analysis-grid">
-        <div class="analysis-card full">
-          <div class="ac-label">Gross Margin mensual vs objetivo $50k</div>
-          <div class="chart-legend">
-            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM mensual</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>GM%</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chartGM"></canvas></div>
-        </div>
-      </div>
     </div>
 
     <div class="highlights-section">
@@ -502,6 +527,22 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 
     <div class="summary-strip strip-4" id="summary-live"></div>
 
+    <div class="analysis-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-blue"></span>
+        Live del Año
+      </div>
+      <div class="analysis-grid">
+        <div class="analysis-card full">
+          <div class="cmp-header">
+            <span class="cmp-title">Live mensual — cada mes en su color · línea = Booked</span>
+            <span class="cmp-stat" id="live-year-stat"></span>
+          </div>
+          <div class="chart-wrap-lg"><canvas id="chartLiveYear"></canvas></div>
+        </div>
+      </div>
+    </div>
+
     <div class="months-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-blue"></span>
@@ -513,11 +554,10 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
     <div class="analysis-section">
       <div class="section-eyebrow">
         <span class="eyebrow-dot dot-blue"></span>
-        Análisis
+        Booked vs Live por Mes
       </div>
       <div class="analysis-grid">
         <div class="analysis-card full">
-          <div class="ac-label">Booked vs Live por mes</div>
           <div class="chart-legend">
             <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked</div>
             <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>Live</div>
@@ -556,6 +596,11 @@ const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tq
 
 // Auto-detect current month from system date
 const MONTH_ORDER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTH_COLORS = [
+  '#c8f135','#4d9de0','#ff6b2b','#e84040',
+  '#a78bfa','#34d399','#f59e0b','#f472b6',
+  '#60a5fa','#fb923c','#86efac','#38bdf8'
+];
 const CURRENT_MONTH = MONTH_ORDER[new Date().getMonth()];
 const PREV_MONTH = MONTH_ORDER[(new Date().getMonth() + 11) % 12];
 
@@ -811,31 +856,33 @@ function renderGM(months, sorted) {
   }).join('');
 
   // Summary strip
+  const totalBFAll = months.reduce((s,m) => s + (m.total?.bookedFee || (m.total?.booked||0)+(m.total?.fee||0)), 0);
+  const convPct = totalBudget > 0 ? Math.round((totalBFAll / totalBudget) * 100) : null;
   document.getElementById('summary-gm').innerHTML = `
     <div class="strip-card">
       <div class="sc-lbl">GM Acumulada</div>
       <div class="sc-val ${avColor}">${fmt(totalGM)}</div>
-      <div class="sc-sub">obj. ${fmt(totalObj)}</div>
+      <div class="sc-sub">obj. ${fmt(totalObj)} · ${avPct !== null ? Math.round(avPct) + '%' : '—'}</div>
     </div>
     <div class="strip-card">
-      <div class="sc-lbl">Avance</div>
-      <div class="sc-val ${avColor}">${avPct !== null ? Math.round(avPct) + '%' : '—'}</div>
-      <div class="sc-sub">${completedMonths.length} meses cerrados</div>
+      <div class="sc-lbl">Budget Esperado</div>
+      <div class="sc-val">${fmt(totalBudget)}</div>
+      <div class="sc-sub">revenue esperado</div>
+    </div>
+    <div class="strip-card">
+      <div class="sc-lbl">Booked + Fee</div>
+      <div class="sc-val ${convPct >= 100 ? 'lime' : convPct >= 70 ? 'blue' : 'orange'}">${fmt(totalBFAll)}</div>
+      <div class="sc-sub">${convPct !== null ? convPct + '% del budget' : '—'}</div>
     </div>
     <div class="strip-card">
       <div class="sc-lbl">Total Booked</div>
       <div class="sc-val">${fmt(totalBooked)}</div>
-      <div class="sc-sub">contratos</div>
+      <div class="sc-sub">Fee: ${fmt(totalFee)}</div>
     </div>
     <div class="strip-card">
-      <div class="sc-lbl">Total Fee</div>
-      <div class="sc-val blue">${fmt(totalFee)}</div>
-      <div class="sc-sub">comisiones</div>
-    </div>
-    <div class="strip-card">
-      <div class="sc-lbl">Budget total</div>
-      <div class="sc-val">${fmt(totalBudget)}</div>
-      <div class="sc-sub">esperado</div>
+      <div class="sc-lbl">Meses cerrados</div>
+      <div class="sc-val">${completedMonths.length}</div>
+      <div class="sc-sub">de ${months.length} en el año</div>
     </div>`;
 
   // Alert banner
@@ -848,39 +895,98 @@ function renderGM(months, sorted) {
     alertEl.style.display = 'none';
   }
 
-  // Chart
+  // ── Chart 1: Budget Esperado vs Booked + Fee ──
+  const totalBudgetCmp = months.reduce((s,m) => s + (m.total?.budget || 0), 0);
+  const totalBookedFee = months.reduce((s,m) => s + (m.total?.bookedFee || (m.total?.booked||0)+(m.total?.fee||0)), 0);
+  const revGapPct = totalBudgetCmp > 0 ? (totalBookedFee / totalBudgetCmp) * 100 : null;
+  const revGapAbs = totalBookedFee - totalBudgetCmp;
+  document.getElementById('gm-cmp-rev-stat').textContent = revGapPct !== null ? Math.round(revGapPct) + '% del budget' : '';
+  document.getElementById('gm-cmp-rev-gap').innerHTML = revGapPct !== null
+    ? `<span class="gap-tag ${revGapPct >= 100 ? 'ok' : revGapPct >= 70 ? 'warn' : 'bad'}">${revGapAbs >= 0 ? '+' : ''}${fmt(revGapAbs)} vs budget total</span>`
+    : '';
+
+  new Chart(document.getElementById('chartBudgetBooked'), {
+    type: 'bar',
+    data: {
+      labels: chrono.map(m => m.name.slice(0,3).toUpperCase()),
+      datasets: [
+        {
+          label: 'Budget Esperado',
+          data: chrono.map(m => m.total?.budget || 0),
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'rgba(255,255,255,0.18)',
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: .75,
+          categoryPercentage: .65,
+          order: 2
+        },
+        {
+          label: 'Booked + Fee',
+          data: chrono.map(m => m.total?.bookedFee || (m.total?.booked||0)+(m.total?.fee||0)),
+          backgroundColor: chrono.map(m => {
+            const budget = m.total?.budget || 0;
+            const bf = m.total?.bookedFee || (m.total?.booked||0)+(m.total?.fee||0);
+            if (!budget || !bf) return 'rgba(77,157,224,0.25)';
+            const p = bf / budget;
+            return p >= 1 ? '#c8f135' : p >= 0.7 ? '#4d9de0' : '#ff6b2b';
+          }),
+          borderRadius: 4,
+          barPercentage: .75,
+          categoryPercentage: .65,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.raw) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
+      }
+    }
+  });
+
+  // ── Chart 2: GM Objetivo vs Real ──
+  const totalGMObj = months.reduce((s,m) => s + m.gmObj, 0);
+  const gmGapAbs = totalGM - totalGMObj;
+  const gmGapPct = totalGMObj > 0 ? (totalGM / totalGMObj) * 100 : null;
+  document.getElementById('gm-cmp-gm-stat').textContent = gmGapPct !== null ? Math.round(gmGapPct) + '% del objetivo' : '';
+  document.getElementById('gm-cmp-gm-gap').innerHTML = gmGapPct !== null
+    ? `<span class="gap-tag ${gmGapPct >= 100 ? 'ok' : gmGapPct >= 70 ? 'warn' : 'bad'}">${gmGapAbs >= 0 ? '+' : ''}${fmt(gmGapAbs)} vs objetivo acumulado</span>`
+    : '';
+
   new Chart(document.getElementById('chartGM'), {
     type: 'bar',
     data: {
-      labels: chrono.map(m => m.name),
+      labels: chrono.map(m => m.name.slice(0,3).toUpperCase()),
       datasets: [
         {
-          label: 'Booked',
-          data: chrono.map(m => m.total?.booked || 0),
-          backgroundColor: 'rgba(255,255,255,0.06)',
-          borderRadius: 4,
-          barPercentage: .55
-        },
-        {
-          label: 'GM',
+          label: 'GM Real',
           data: chrono.map(m => m.total?.gm || 0),
           backgroundColor: chrono.map(m => {
             const p = m.total?.gm && m.gmObj ? (m.total.gm / m.gmObj) * 100 : 0;
             return p >= 100 ? '#c8f135' : p >= 70 ? '#ff6b2b' : p > 0 ? '#e84040' : 'rgba(255,255,255,0.07)';
           }),
           borderRadius: 4,
-          barPercentage: .55
+          barPercentage: .6,
+          order: 2
         },
         {
           label: 'Objetivo',
           data: chrono.map(m => m.gmObj),
           type: 'line',
-          borderColor: 'rgba(232,64,64,0.5)',
+          borderColor: 'rgba(232,64,64,0.6)',
           borderDash: [5, 3],
-          borderWidth: 1.5,
+          borderWidth: 2,
           pointRadius: 0,
           fill: false,
-          tension: 0
+          tension: 0,
+          order: 1
         },
         {
           label: 'GM%',
@@ -892,15 +998,19 @@ function renderGM(months, sorted) {
           pointBackgroundColor: '#4d9de0',
           fill: false,
           tension: 0.3,
-          yAxisID: 'y1'
+          yAxisID: 'y1',
+          order: 0
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y1' ? ctx.raw + '%' : fmt(ctx.raw)) } }
+      },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 10 } } },
         y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } },
         y1: { position: 'right', grid: { display: false }, ticks: { callback: v => v + '%', color: '#4d9de0', font: { size: 10 } }, border: { display: false }, min: 0, max: 100 }
       }
@@ -1056,7 +1166,69 @@ function renderLive(months, sorted, rollover) {
       <div class="sc-sub">booked → live</div>
     </div>`;
 
-  // Chart
+  // ── Live del Año — multicolor ──
+  const totalLiveYear = chrono.reduce((s,m) => s + (m.total?.live || 0), 0);
+  const totalBookedYear = chrono.reduce((s,m) => s + (m.total?.booked || 0), 0);
+  const liveExecPct = totalBookedYear > 0 ? (totalLiveYear / totalBookedYear) * 100 : null;
+  document.getElementById('live-year-stat').textContent = liveExecPct !== null ? Math.round(liveExecPct) + '% ejecutado del año' : '';
+
+  new Chart(document.getElementById('chartLiveYear'), {
+    type: 'bar',
+    data: {
+      labels: chrono.map(m => m.name.slice(0,3).toUpperCase()),
+      datasets: [
+        {
+          label: 'Live',
+          data: chrono.map(m => m.total?.live || 0),
+          backgroundColor: chrono.map((m, i) => MONTH_COLORS[MONTH_ORDER.indexOf(m.name)] ?? MONTH_COLORS[i % 12]),
+          borderRadius: 5,
+          barPercentage: .65,
+          order: 2
+        },
+        {
+          label: 'Booked',
+          data: chrono.map(m => m.total?.booked || 0),
+          type: 'line',
+          borderColor: 'rgba(255,255,255,0.3)',
+          borderWidth: 2,
+          borderDash: [4, 3],
+          pointRadius: 4,
+          pointBackgroundColor: chrono.map((m, i) => MONTH_COLORS[MONTH_ORDER.indexOf(m.name)] ?? MONTH_COLORS[i % 12]),
+          pointBorderColor: 'rgba(255,255,255,0.5)',
+          pointBorderWidth: 1.5,
+          fill: false,
+          tension: 0,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + ctx.dataset.label + ': ' + fmt(ctx.raw),
+            afterBody: (items) => {
+              const idx = items[0].dataIndex;
+              const m = chrono[idx];
+              if (!m) return [];
+              const booked = m.total?.booked || 0;
+              const live = m.total?.live || 0;
+              const pct = booked > 0 ? Math.round((live / booked) * 100) : 0;
+              return [`  Ejecución: ${pct}%`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
+      }
+    }
+  });
+
+  // ── Booked vs Live por mes ──
   new Chart(document.getElementById('chartLive'), {
     type: 'bar',
     data: {

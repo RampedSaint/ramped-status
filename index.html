@@ -54,7 +54,10 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
   font-size: 42px;
   letter-spacing: .04em;
   line-height: 1;
-  color: var(--lime);
+  background: linear-gradient(135deg, #6C3BFF, #FF4FA3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .header-sub {
   font-size: 11px;
@@ -426,8 +429,15 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .modal-close:hover { color:var(--text); border-color:var(--border2); }
 .modal-body { padding:1.25rem; }
 
-.alert-banner { background:var(--orange-dim); border:1px solid rgba(255,107,43,.25); border-radius:8px; padding:.75rem 1rem; font-size:12px; color:var(--orange); margin-bottom:1.5rem; display:flex; align-items:center; gap:8px; }
+.alert-banner { background:var(--orange-dim); border:1px solid rgba(255,107,43,.25); border-radius:8px; padding:.75rem 1rem; font-size:12px; color:var(--orange); margin-bottom:1rem; display:flex; align-items:center; gap:8px; }
 .alert-icon { font-size:16px; }
+.annual-bar { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem; }
+.annual-bar-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+.annual-bar-title { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.annual-bar-pct { font-family:var(--mono); font-size:20px; font-weight:500; }
+.annual-bar-track { height:12px; background:var(--surface3); border-radius:6px; overflow:hidden; position:relative; }
+.annual-bar-fill { height:100%; border-radius:6px; transition:width .5s; }
+.annual-bar-meta { display:flex; justify-content:space-between; margin-top:6px; font-size:10px; color:var(--muted); }
 .accounts-section { margin-top: 2.5rem; }
 
 /* ── RESPONSIVE ── */
@@ -479,6 +489,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
   <div class="panel active" id="panel-gm">
 
     <div class="summary-strip strip-5" id="summary-gm"></div>
+    <div id="annual-progress"></div>
     <div id="alert-gm" style="display:none"></div>
 
     <div class="analysis-section">
@@ -891,8 +902,29 @@ function renderGM(months, sorted) {
       <div class="sc-sub">de ${months.length} en el año</div>
     </div>`;
 
-  // Alert banner
+  // Annual progress bar
   const currentMonth = months.find(m => m.name === CURRENT_MONTH);
+  const ANNUAL_GOAL = 3000000;
+  const totalRevenue = months.reduce((s,m) => s + ((m.total?.bookedFee) || ((m.total?.booked||0)+(m.total?.fee||0))), 0);
+  const annualPct = ANNUAL_GOAL > 0 ? Math.min((totalRevenue / ANNUAL_GOAL) * 100, 100) : 0;
+  const annualColor = annualPct >= 25 ? 'var(--lime)' : annualPct >= 15 ? 'var(--blue)' : 'var(--orange)';
+  document.getElementById('annual-progress').innerHTML = `
+    <div class="annual-bar">
+      <div class="annual-bar-header">
+        <span class="annual-bar-title">Objetivo anual de facturación</span>
+        <span class="annual-bar-pct" style="color:${annualColor}">${annualPct.toFixed(1)}%</span>
+      </div>
+      <div class="annual-bar-track">
+        <div class="annual-bar-fill" style="width:${annualPct}%;background:${annualColor}"></div>
+      </div>
+      <div class="annual-bar-meta">
+        <span>${fmt(totalRevenue)} facturado</span>
+        <span>Objetivo: ${fmt(ANNUAL_GOAL)}</span>
+        <span>Faltan: ${fmt(ANNUAL_GOAL - totalRevenue)}</span>
+      </div>
+    </div>`;
+
+  // Alert banner
   const alertEl = document.getElementById('alert-gm');
   if (currentMonth && (currentMonth.total?.budget || 0) > 0 && !(currentMonth.total?.booked > 0)) {
     alertEl.innerHTML = `<div class="alert-banner"><span class="alert-icon">⚡</span> <strong>${CURRENT_MONTH}:</strong> ${fmt(currentMonth.total.budget)} en budget esperado sin booking confirmado</div>`;

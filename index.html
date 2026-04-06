@@ -182,7 +182,6 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .mc-kpis-2 { grid-template-columns: 1fr 1fr; }
 .mc-kpis-3 { grid-template-columns: 1fr 1fr 1fr; }
 
-.kpi-block {}
 .kpi-lbl {
   font-size: 9px;
   font-weight: 500;
@@ -395,6 +394,9 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .hc-label { font-size: 12px; color: var(--text); font-weight: 400; line-height: 1.4; }
 .hc-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
 
+.chart-wrap { position: relative; width: 100%; height: 200px; }
+.no-data-msg { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1000px) {
   .months-grid { grid-template-columns: repeat(2, 1fr); }
@@ -456,7 +458,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
             <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM mensual</div>
             <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo</div>
           </div>
-          <div style="position:relative;width:100%;height:200px;"><canvas id="chartGM"></canvas></div>
+          <div class="chart-wrap"><canvas id="chartGM"></canvas></div>
         </div>
       </div>
     </div>
@@ -496,7 +498,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
             <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked</div>
             <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>Live</div>
           </div>
-          <div style="position:relative;width:100%;height:200px;"><canvas id="chartLive"></canvas></div>
+          <div class="chart-wrap"><canvas id="chartLive"></canvas></div>
         </div>
       </div>
     </div>
@@ -519,9 +521,9 @@ const SHEET_GID = '59282509';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
 
 // Auto-detect current month from system date
-const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const CURRENT_MONTH = MONTH_NAMES[new Date().getMonth()];
-const PREV_MONTH = MONTH_NAMES[(new Date().getMonth() + 11) % 12];
+const MONTH_ORDER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CURRENT_MONTH = MONTH_ORDER[new Date().getMonth()];
+const PREV_MONTH = MONTH_ORDER[(new Date().getMonth() + 11) % 12];
 
 document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
 
@@ -615,18 +617,16 @@ function extractMonths(rows) {
 
 // Sort: current month first, then chronological for the rest
 function sortMonthsDisplay(months) {
-  const order = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const curIdx = months.findIndex(m => m.name === CURRENT_MONTH);
-  if (curIdx < 0) return [...months].sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+  if (curIdx < 0) return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
   const current = months[curIdx];
-  const rest = months.filter((_,i) => i !== curIdx).sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+  const rest = months.filter((_,i) => i !== curIdx).sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
   return [current, ...rest];
 }
 
 // Chronological for charts
 function sortChronological(months) {
-  const order = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  return [...months].sort((a,b) => order.indexOf(a.name) - order.indexOf(b.name));
+  return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
 }
 
 function computeRollover(months) {
@@ -674,6 +674,13 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('active-gm','active-live'); });
   document.getElementById('panel-' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active-' + tab);
+}
+
+function findTopClient(clients, key) {
+  let best = null, bestVal = 0;
+  if (!clients) return { name: null, val: 0 };
+  clients.forEach(c => { if ((c[key] || 0) > bestVal) { bestVal = c[key]; best = c.name; } });
+  return { name: best, val: bestVal };
 }
 
 /* ── RENDER GM ── */
@@ -748,7 +755,7 @@ function renderGM(months, sorted) {
           <div class="mc-progress-track">
             <div class="mc-progress-fill" style="width:${barW}%;background:${barFill(gmPct)}"></div>
           </div>
-        </div>` : `<div style="font-size:10px;color:var(--muted);margin-top:6px;">Mes en curso — sin datos aún</div>`}
+        </div>` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
       </div>
       <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
         <span>Clientes (${m.clients.length})</span><span class="arrow">↓</span>
@@ -833,29 +840,22 @@ function renderGM(months, sorted) {
   const prevMonth = months.find(m => m.name === PREV_MONTH);
   const currentMonth = months.find(m => m.name === CURRENT_MONTH);
 
-  let topGMClient = null, topGMVal = 0;
-  if (prevMonth) {
-    prevMonth.clients.forEach(c => { if ((c.gm || 0) > topGMVal) { topGMVal = c.gm; topGMClient = c.name; } });
-  }
-
-  let topBudgetClient = null, topBudgetVal = 0;
-  if (currentMonth) {
-    currentMonth.clients.forEach(c => { if ((c.budget || 0) > topBudgetVal) { topBudgetVal = c.budget; topBudgetClient = c.name; } });
-  }
+  const topGM = findTopClient(prevMonth?.clients, 'gm');
+  const topBudget = findTopClient(currentMonth?.clients, 'budget');
 
   const gmGap = currentMonth ? currentMonth.gmObj - (currentMonth.total?.gm || 0) : null;
 
   document.getElementById('highlights-gm').innerHTML = `
     <div class="highlight-card gold">
       <div class="hc-tag tag-lime">★ Mejor GM — ${PREV_MONTH}</div>
-      <div class="hc-number lime">${fmt(topGMVal)}</div>
-      <div class="hc-label">${topGMClient || '—'}</div>
+      <div class="hc-number lime">${fmt(topGM.val)}</div>
+      <div class="hc-label">${topGM.name || '—'}</div>
       <div class="hc-sub">Mayor gross margin del mes cerrado</div>
     </div>
     <div class="highlight-card focus">
       <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
-      <div class="hc-number blue">${fmt(topBudgetVal)}</div>
-      <div class="hc-label">${topBudgetClient || '—'}</div>
+      <div class="hc-number blue">${fmt(topBudget.val)}</div>
+      <div class="hc-label">${topBudget.name || '—'}</div>
       <div class="hc-sub">Mayor budget esperado este mes</div>
     </div>
     <div class="highlight-card alert">
@@ -933,7 +933,7 @@ function renderLive(months, sorted, rollover) {
           <div class="mc-progress-track">
             <div class="mc-progress-fill" style="width:${barW}%;background:${execFill(ep)}"></div>
           </div>
-        </div>` : `<div style="font-size:10px;color:var(--muted);margin-top:6px;">Mes en curso — sin datos aún</div>`}
+        </div>` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
         ${rolloverHTML}
       </div>
       <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
@@ -993,22 +993,19 @@ function renderLive(months, sorted, rollover) {
 
   // Highlights live
   const prevMonth = months.find(m => m.name === PREV_MONTH);
-  let topLiveClient = null, topLiveVal = 0;
-  if (prevMonth) {
-    prevMonth.clients.forEach(c => { if ((c.live || 0) > topLiveVal) { topLiveVal = c.live; topLiveClient = c.name; } });
-  }
+  const topLive = findTopClient(prevMonth?.clients, 'live');
 
   const totalRollover = Object.values(rollover).reduce((s,v) => s+v, 0);
   const rolloverCount = Object.keys(rollover).length;
 
   const currentMonth = months.find(m => m.name === CURRENT_MONTH);
-  const topBudgetClient = currentMonth?.clients.reduce((best, c) => (c.budget||0) > (best?.budget||0) ? c : best, null);
+  const topBudget = findTopClient(currentMonth?.clients, 'budget');
 
   document.getElementById('highlights-live').innerHTML = `
     <div class="highlight-card gold">
       <div class="hc-tag tag-lime">★ Mayor Live — ${PREV_MONTH}</div>
-      <div class="hc-number lime">${fmt(topLiveVal)}</div>
-      <div class="hc-label">${topLiveClient || '—'}</div>
+      <div class="hc-number lime">${fmt(topLive.val)}</div>
+      <div class="hc-label">${topLive.name || '—'}</div>
       <div class="hc-sub">Mayor ejecución de contenidos del mes</div>
     </div>
     <div class="highlight-card alert">
@@ -1019,8 +1016,8 @@ function renderLive(months, sorted, rollover) {
     </div>
     <div class="highlight-card focus">
       <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
-      <div class="hc-number blue">${fmt(topBudgetClient?.budget)}</div>
-      <div class="hc-label">${topBudgetClient?.name || '—'}</div>
+      <div class="hc-number blue">${fmt(topBudget.val)}</div>
+      <div class="hc-label">${topBudget.name || '—'}</div>
       <div class="hc-sub">Mayor presupuesto a ejecutar este mes</div>
     </div>`;
 }

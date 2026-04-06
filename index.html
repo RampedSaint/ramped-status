@@ -397,6 +397,20 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .chart-wrap { position: relative; width: 100%; height: 200px; }
 .no-data-msg { font-size: 10px; color: var(--muted); margin-top: 6px; }
 
+/* ── MODAL ── */
+.modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.75); z-index:1000; backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:var(--surface); border:1px solid var(--border2); border-radius:12px; max-width:700px; width:90%; max-height:80vh; overflow-y:auto; position:relative; }
+.modal-head { padding:1rem 1.25rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:var(--surface); z-index:1; }
+.modal-title { font-family:var(--display); font-size:22px; letter-spacing:.04em; }
+.modal-close { background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); font-size:18px; width:32px; height:32px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+.modal-close:hover { color:var(--text); border-color:var(--border2); }
+.modal-body { padding:1.25rem; }
+
+.alert-banner { background:var(--orange-dim); border:1px solid rgba(255,107,43,.25); border-radius:8px; padding:.75rem 1rem; font-size:12px; color:var(--orange); margin-bottom:1.5rem; display:flex; align-items:center; gap:8px; }
+.alert-icon { font-size:16px; }
+.accounts-section { margin-top: 2.5rem; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1000px) {
   .months-grid { grid-template-columns: repeat(2, 1fr); }
@@ -437,6 +451,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
   <div class="panel active" id="panel-gm">
 
     <div class="summary-strip strip-5" id="summary-gm"></div>
+    <div id="alert-gm" style="display:none"></div>
 
     <div class="months-section">
       <div class="section-eyebrow">
@@ -457,6 +472,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
           <div class="chart-legend">
             <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM mensual</div>
             <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>GM%</div>
           </div>
           <div class="chart-wrap"><canvas id="chartGM"></canvas></div>
         </div>
@@ -469,6 +485,14 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
         Destacados
       </div>
       <div class="highlights-grid" id="highlights-gm"></div>
+    </div>
+
+    <div class="accounts-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-lime"></span>
+        Top Accounts 2026
+      </div>
+      <div id="top-accounts"></div>
     </div>
 
   </div>
@@ -512,6 +536,16 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
     </div>
 
   </div>
+
+<div class="modal-overlay" id="clientModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
 
 </div>
 
@@ -617,7 +651,7 @@ function extractMonths(rows) {
 
 // Sort: reverse chronological (most recent first)
 function sortMonthsDisplay(months) {
-  return [...months].sort((a,b) => MONTH_ORDER.indexOf(b.name) - MONTH_ORDER.indexOf(a.name));
+  return [...months].sort((a,b) => MONTH_ORDER.indexOf(a.name) - MONTH_ORDER.indexOf(b.name));
 }
 
 // Chronological for charts
@@ -659,12 +693,6 @@ function execFill(p) {
   return 'var(--orange)';
 }
 
-function toggleDetail(id, btn) {
-  const el = document.getElementById(id);
-  el.classList.toggle('open');
-  btn.querySelector('.arrow').textContent = el.classList.contains('open') ? '↑' : '↓';
-}
-
 function switchTab(tab) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('active-gm','active-live'); });
@@ -679,8 +707,31 @@ function findTopClient(clients, key) {
   return { name: best, val: bestVal };
 }
 
+function openClientModal(monthName, clients, total, type) {
+  document.getElementById('modalTitle').textContent = monthName.toUpperCase() + ' — Clientes';
+  const isGM = type === 'gm';
+  const headers = isGM
+    ? '<tr><th>Cliente</th><th>Budget</th><th>Booked</th><th>Fee</th><th>GM</th><th>GM%</th></tr>'
+    : '<tr><th>Cliente</th><th>Booked</th><th>Live</th><th>Pendiente</th></tr>';
+  const rows = clients.map(c => {
+    if (isGM) return `<tr><td>${c.name}</td><td>${fmt(c.budget)}</td><td>${fmt(c.booked)}</td><td>${fmt(c.fee)}</td><td>${fmt(c.gm)}</td><td>${c.gmPct !== null ? c.gmPct + '%' : '—'}</td></tr>`;
+    const pend = (c.booked||0) - (c.live||0);
+    return `<tr><td>${c.name}</td><td>${fmt(c.booked)}</td><td>${fmt(c.live)}</td><td style="color:${pend > 500 ? 'var(--orange)' : 'var(--muted)'}">${fmt(pend)}</td></tr>`;
+  }).join('');
+  const totRow = total ? (isGM
+    ? `<tr style="border-top:2px solid var(--border2)"><td><strong>Total</strong></td><td>${fmt(total.budget)}</td><td>${fmt(total.booked)}</td><td>${fmt(total.fee)}</td><td><strong>${fmt(total.gm)}</strong></td><td>${total.gmPct != null ? total.gmPct + '%' : '—'}</td></tr>`
+    : `<tr style="border-top:2px solid var(--border2)"><td><strong>Total</strong></td><td>${fmt(total.booked)}</td><td>${fmt(total.live)}</td><td><strong>${fmt((total.booked||0)-(total.live||0))}</strong></td></tr>`)
+    : '';
+  document.getElementById('modalBody').innerHTML = `<table class="dt">${headers}<tbody>${rows}${totRow}</tbody></table>`;
+  document.getElementById('clientModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('clientModal').classList.remove('open');
+}
+
 /* ── RENDER GM ── */
 function renderGM(months, sorted) {
+  window._months = months;
   const chrono = sortChronological(months);
   const completedMonths = months.filter(m => m.total?.gm && m.total.gm > 0);
   const totalGM = completedMonths.reduce((s,m) => s + (m.total?.gm || 0), 0);
@@ -710,17 +761,6 @@ function renderGM(months, sorted) {
     const barW = gmPct !== null ? Math.min(gmPct, 100) : 0;
     const id = 'gm_' + m.name.toLowerCase();
     const hasData = m.total?.booked > 0;
-
-    const rows = m.clients.map(c => `
-      <tr>
-        <td>${c.name}</td>
-        <td>${fmt(c.budget)}</td>
-        <td>${fmt(c.booked)}</td>
-        <td>${fmt(c.fee)}</td>
-        <td>${fmt(c.gm)}</td>
-        <td>${c.gmPct !== null ? c.gmPct + '%' : '—'}</td>
-      </tr>`).join('');
-    const totRow = m.total ? `<tr><td>Total</td><td>${fmt(m.total.budget)}</td><td>${fmt(m.total.booked)}</td><td>${fmt(m.total.fee)}</td><td>${fmt(m.total.gm)}</td><td>${m.total.gmPct !== null ? m.total.gmPct + '%' : '—'}</td></tr>` : '';
 
     return `
     <div class="month-card ${isCurrent ? 'is-current' : ''}">
@@ -764,15 +804,9 @@ function renderGM(months, sorted) {
           </div>
         </div>` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
       </div>
-      <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
-        <span>Clientes (${m.clients.length})</span><span class="arrow">↓</span>
+      <button class="mc-toggle" onclick="openClientModal('${m.name}',window._months.find(x=>x.name==='${m.name}').clients,window._months.find(x=>x.name==='${m.name}').total,'gm')">
+        <span>Clientes (${m.clients.length})</span><span class="arrow">→</span>
       </button>
-      <div class="mc-detail" id="${id}">
-        <table class="dt">
-          <thead><tr><th>Cliente</th><th>Budget</th><th>Booked</th><th>Fee</th><th>GM</th><th>GM%</th></tr></thead>
-          <tbody>${rows}${totRow}</tbody>
-        </table>
-      </div>
     </div>`;
   }).join('');
 
@@ -803,6 +837,16 @@ function renderGM(months, sorted) {
       <div class="sc-val">${fmt(totalBudget)}</div>
       <div class="sc-sub">esperado</div>
     </div>`;
+
+  // Alert banner
+  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
+  const alertEl = document.getElementById('alert-gm');
+  if (currentMonth && (currentMonth.total?.budget || 0) > 0 && !(currentMonth.total?.booked > 0)) {
+    alertEl.innerHTML = `<div class="alert-banner"><span class="alert-icon">⚡</span> <strong>${CURRENT_MONTH}:</strong> ${fmt(currentMonth.total.budget)} en budget esperado sin booking confirmado</div>`;
+    alertEl.style.display = 'block';
+  } else {
+    alertEl.style.display = 'none';
+  }
 
   // Chart
   new Chart(document.getElementById('chartGM'), {
@@ -837,6 +881,18 @@ function renderGM(months, sorted) {
           pointRadius: 0,
           fill: false,
           tension: 0
+        },
+        {
+          label: 'GM%',
+          data: chrono.map(m => m.total?.gmPct || 0),
+          type: 'line',
+          borderColor: '#4d9de0',
+          borderWidth: 1.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#4d9de0',
+          fill: false,
+          tension: 0.3,
+          yAxisID: 'y1'
         }
       ]
     },
@@ -845,14 +901,14 @@ function renderGM(months, sorted) {
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
       scales: {
         x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 11 } } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } }
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } },
+        y1: { position: 'right', grid: { display: false }, ticks: { callback: v => v + '%', color: '#4d9de0', font: { size: 10 } }, border: { display: false }, min: 0, max: 100 }
       }
     }
   });
 
   // Highlights
   const prevMonth = months.find(m => m.name === PREV_MONTH);
-  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
 
   const topGM = findTopClient(prevMonth?.clients, 'gm');
   const topBudget = findTopClient(currentMonth?.clients, 'budget');
@@ -878,6 +934,38 @@ function renderGM(months, sorted) {
       <div class="hc-label">Por cerrar para alcanzar objetivo</div>
       <div class="hc-sub">Objetivo ${fmt(currentMonth?.gmObj)}</div>
     </div>`;
+
+  // Top Accounts
+  const accountMap = {};
+  months.forEach(m => {
+    m.clients.forEach(c => {
+      if (!accountMap[c.name]) accountMap[c.name] = { booked: 0, fee: 0, gm: 0, months: 0 };
+      accountMap[c.name].booked += (c.booked || 0);
+      accountMap[c.name].fee += (c.fee || 0);
+      accountMap[c.name].gm += (c.gm || 0);
+      if ((c.booked || 0) > 0) accountMap[c.name].months++;
+    });
+  });
+  const topAccounts = Object.entries(accountMap)
+    .map(([name, d]) => ({ name, ...d }))
+    .filter(a => a.booked > 0)
+    .sort((a, b) => b.gm - a.gm);
+  const maxGM = topAccounts[0]?.gm || 1;
+
+  document.getElementById('top-accounts').innerHTML = `
+    <table class="dt">
+      <thead><tr><th>Cliente</th><th>Booked</th><th>Fee</th><th>GM Total</th><th>Meses</th><th></th></tr></thead>
+      <tbody>${topAccounts.map(a => `
+        <tr>
+          <td><strong>${a.name}</strong></td>
+          <td>${fmt(a.booked)}</td>
+          <td>${fmt(a.fee)}</td>
+          <td style="color:var(--lime);font-weight:600">${fmt(a.gm)}</td>
+          <td>${a.months}</td>
+          <td style="width:100px"><div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${Math.round((a.gm/maxGM)*100)}%;background:var(--lime);border-radius:2px"></div></div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
 
 /* ── RENDER LIVE ── */
@@ -899,17 +987,6 @@ function renderLive(months, sorted, rollover) {
     const id = 'live_' + m.name.toLowerCase();
     const hasData = booked > 0;
     const rolloverItems = isCurrent ? Object.entries(rollover).filter(([,v]) => v > 200) : [];
-
-    const rows = m.clients.map(c => {
-      const pend = (c.booked || 0) - (c.live || 0);
-      return `<tr>
-        <td>${c.name}</td>
-        <td>${fmt(c.booked)}</td>
-        <td>${fmt(c.live)}</td>
-        <td style="color:${pend > 500 ? 'var(--orange)' : 'var(--muted)'}">${fmt(pend)}</td>
-      </tr>`;
-    }).join('');
-    const totRow = m.total ? `<tr><td>Total</td><td>${fmt(m.total.booked)}</td><td>${fmt(m.total.live)}</td><td>${fmt((m.total.booked||0)-(m.total.live||0))}</td></tr>` : '';
 
     const rolloverHTML = rolloverItems.length > 0 ? `
       <div class="rollover-block">
@@ -950,15 +1027,9 @@ function renderLive(months, sorted, rollover) {
         </div>` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
         ${rolloverHTML}
       </div>
-      <button class="mc-toggle" onclick="toggleDetail('${id}',this)">
-        <span>Clientes (${m.clients.length})</span><span class="arrow">↓</span>
+      <button class="mc-toggle" onclick="openClientModal('${m.name}',window._months.find(x=>x.name==='${m.name}').clients,window._months.find(x=>x.name==='${m.name}').total,'live')">
+        <span>Clientes (${m.clients.length})</span><span class="arrow">→</span>
       </button>
-      <div class="mc-detail" id="${id}">
-        <table class="dt">
-          <thead><tr><th>Cliente</th><th>Booked</th><th>Live</th><th>Pendiente</th></tr></thead>
-          <tbody>${rows}${totRow}</tbody>
-        </table>
-      </div>
     </div>`;
   }).join('');
 

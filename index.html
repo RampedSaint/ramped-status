@@ -410,6 +410,12 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .chart-wrap { position: relative; width: 100%; height: 200px; }
 .chart-wrap-lg { position: relative; width: 100%; height: 260px; }
 .no-data-msg { font-size: 10px; color: var(--muted); margin-top: 6px; }
+.client-bars { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+.client-bar-row { display:flex; align-items:center; gap:6px; }
+.client-bar-name { font-size:9px; color:var(--muted); width:70px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.client-bar-track { flex:1; height:3px; background:var(--surface3); border-radius:2px; overflow:hidden; }
+.client-bar-fill { height:100%; border-radius:2px; }
+.client-bar-pct { font-size:9px; font-weight:600; width:30px; text-align:right; flex-shrink:0; }
 .gap-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 3px; margin-top: 5px; font-weight: 500; }
 .gap-tag.ok { background: var(--lime-dim); color: var(--lime); }
 .gap-tag.warn { background: var(--orange-dim); color: var(--orange); }
@@ -1175,7 +1181,17 @@ function renderLive(months, sorted, rollover) {
           <div class="mc-progress-track">
             <div class="mc-progress-fill" style="width:${barW}%;background:${execFill(ep)}"></div>
           </div>
-        </div>` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
+        </div>
+        ${hasData ? `<div class="client-bars">${m.clients.filter(c => (c.booked||0) > 0).map(c => {
+          const cPct = c.booked > 0 ? Math.round(((c.live||0) / c.booked) * 100) : 0;
+          const cColor = cPct >= 100 ? 'var(--lime)' : cPct >= 70 ? 'var(--blue)' : 'var(--orange)';
+          return `<div class="client-bar-row">
+            <span class="client-bar-name">${c.name}</span>
+            <div class="client-bar-track"><div class="client-bar-fill" style="width:${Math.min(cPct,100)}%;background:${cColor}"></div></div>
+            <span class="client-bar-pct" style="color:${cColor}">${cPct}%</span>
+          </div>`;
+        }).join('')}</div>` : ''}
+        ` : `<div class="no-data-msg">Mes en curso — sin datos aún</div>`}
         ${rolloverHTML}
       </div>
       <button class="mc-toggle" onclick="openClientModal('${m.name}',window._months.find(x=>x.name==='${m.name}').clients,window._months.find(x=>x.name==='${m.name}').total,'live')">

@@ -457,6 +457,35 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 .forecast-bar-fill { height:100%; border-radius:5px; }
 .forecast-note { font-size:10px; color:var(--muted); margin-top:8px; font-style:italic; }
 
+/* ── CURRENT MONTH HERO ── */
+.hero-section { margin-bottom: 2.5rem; }
+.hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hero-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+}
+.hero-card.rev { border-color: rgba(77,157,224,0.3); }
+.hero-card.gm-hero { border-color: rgba(200,241,53,0.3); }
+.hero-card-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}
+.hero-comparison { display: flex; align-items: flex-end; gap: 2rem; margin-bottom: 1.25rem; }
+.hero-metric { flex: 1; }
+.hero-metric-lbl { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.hero-metric-val { font-family: var(--mono); font-size: 30px; font-weight: 500; line-height: 1; }
+.hero-divider { width: 1px; align-self: stretch; background: var(--border2); flex-shrink: 0; }
+.hero-bar-track { height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; }
+.hero-bar-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+.hero-bar-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; font-family: var(--mono); color: var(--muted); }
+@media (max-width: 640px) { .hero-grid { grid-template-columns: 1fr; } }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1000px) {
   .months-grid { grid-template-columns: repeat(2, 1fr); }
@@ -507,6 +536,7 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
 
     <div class="summary-strip strip-5" id="summary-gm"></div>
     <div id="annual-progress"></div>
+    <div id="current-month-hero"></div>
 
     <div class="analysis-section">
       <div class="section-eyebrow">
@@ -519,10 +549,6 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
             <span class="cmp-title">Revenue Expected vs Booked + Fee</span>
             <span class="cmp-stat" id="gm-cmp-rev-stat"></span>
           </div>
-          <div class="chart-legend">
-            <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15)"></div>Budget esperado</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Booked + Fee</div>
-          </div>
           <div class="chart-wrap"><canvas id="chartBudgetBooked"></canvas></div>
           <div id="gm-cmp-rev-gap" style="margin-top:8px"></div>
         </div>
@@ -530,11 +556,6 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
           <div class="cmp-header">
             <span class="cmp-title">GM Objetivo vs Real</span>
             <span class="cmp-stat" id="gm-cmp-gm-stat"></span>
-          </div>
-          <div class="chart-legend">
-            <div class="legend-item"><div class="legend-dot" style="background:var(--lime)"></div>GM Real</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--red);opacity:.7;border-radius:0"></div>Objetivo $50k</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>GM%</div>
           </div>
           <div class="chart-wrap"><canvas id="chartGM"></canvas></div>
           <div id="gm-cmp-gm-gap" style="margin-top:8px"></div>
@@ -914,7 +935,7 @@ function renderGM(months, sorted) {
         <div class="mc-kpis mc-kpis-3">
           <div class="kpi-block">
             <div class="kpi-lbl">Booked</div>
-            <div class="kpi-num">${fmt(m.total?.booked)}</div>
+            <div class="kpi-num blue">${fmt(m.total?.booked)}</div>
           </div>
           <div class="kpi-block">
             <div class="kpi-lbl">Fee</div>
@@ -979,12 +1000,12 @@ function renderGM(months, sorted) {
     </div>
     <div class="strip-card">
       <div class="sc-lbl">Booked + Fee</div>
-      <div class="sc-val ${convPct >= 100 ? 'lime' : convPct >= 70 ? 'blue' : 'orange'}">${fmt(totalBFAll)}</div>
+      <div class="sc-val blue">${fmt(totalBFAll)}</div>
       <div class="sc-sub">${convPct !== null ? convPct + '% del budget' : '—'}</div>
     </div>
     <div class="strip-card">
       <div class="sc-lbl">Total Booked</div>
-      <div class="sc-val">${fmt(totalBooked)}</div>
+      <div class="sc-val blue">${fmt(totalBooked)}</div>
       <div class="sc-sub">Fee: ${fmt(totalFee)}</div>
     </div>
     <div class="strip-card">
@@ -1016,6 +1037,78 @@ function renderGM(months, sorted) {
     </div>`;
 
 
+
+  // ── Current Month Hero ──
+  const cmHero = months.find(m => m.name === CURRENT_MONTH) || sorted[sorted.length - 1];
+  if (cmHero) {
+    const cmBooked = cmHero.total?.booked || 0;
+    const cmFee = cmHero.total?.fee || 0;
+    const cmBF = cmHero.total?.bookedFee || (cmBooked + cmFee);
+    const cmBudget = cmHero.total?.budget || 0;
+    const cmGM = cmHero.total?.gm || 0;
+    const cmGMObj = cmHero.gmObj || 50000;
+
+    const revPct = cmBudget > 0 ? (cmBF / cmBudget) * 100 : null;
+    const gmHeroPct = cmGMObj > 0 ? (cmGM / cmGMObj) * 100 : null;
+
+    const revColor = revPct === null ? 'var(--muted)' : revPct >= 100 ? 'var(--lime)' : revPct >= 70 ? 'var(--blue)' : 'var(--orange)';
+    const gmHeroColor = gmHeroPct === null ? 'var(--muted)' : gmHeroPct >= 100 ? 'var(--lime)' : gmHeroPct >= 70 ? 'var(--orange)' : cmGM > 0 ? 'var(--red)' : 'var(--muted)';
+
+    const revDelta = cmBF - cmBudget;
+    const gmDelta = cmGM - cmGMObj;
+
+    document.getElementById('current-month-hero').innerHTML = `
+    <div class="hero-section">
+      <div class="section-eyebrow">
+        <span class="eyebrow-dot dot-lime"></span>
+        ${cmHero.name} — Mes actual
+      </div>
+      <div class="hero-grid">
+        <div class="hero-card rev">
+          <div class="hero-card-label">Revenue Esperado vs Booked + Fee</div>
+          <div class="hero-comparison">
+            <div class="hero-metric">
+              <div class="hero-metric-lbl">Rev. Esperado</div>
+              <div class="hero-metric-val" style="color:var(--text)">${fmt(cmBudget)}</div>
+            </div>
+            <div class="hero-divider"></div>
+            <div class="hero-metric">
+              <div class="hero-metric-lbl">Booked + Fee</div>
+              <div class="hero-metric-val" style="color:var(--blue)">${fmt(cmBF)}</div>
+            </div>
+          </div>
+          <div class="hero-bar-track">
+            <div class="hero-bar-fill" style="width:${Math.min(revPct||0,100)}%;background:${revColor}"></div>
+          </div>
+          <div class="hero-bar-meta">
+            <span>${revPct !== null ? Math.round(revPct) + '% del esperado' : 'Sin datos'}</span>
+            <span style="color:${revColor}">${cmBudget > 0 ? (revDelta >= 0 ? '+' : '') + fmt(revDelta) : '—'}</span>
+          </div>
+        </div>
+        <div class="hero-card gm-hero">
+          <div class="hero-card-label">GM Objetivo vs GM Real</div>
+          <div class="hero-comparison">
+            <div class="hero-metric">
+              <div class="hero-metric-lbl">GM Objetivo</div>
+              <div class="hero-metric-val" style="color:var(--text)">${fmt(cmGMObj)}</div>
+            </div>
+            <div class="hero-divider"></div>
+            <div class="hero-metric">
+              <div class="hero-metric-lbl">GM Real</div>
+              <div class="hero-metric-val" style="color:${gmHeroColor}">${cmGM > 0 ? fmt(cmGM) : '—'}</div>
+            </div>
+          </div>
+          <div class="hero-bar-track">
+            <div class="hero-bar-fill" style="width:${Math.min(gmHeroPct||0,100)}%;background:${gmHeroColor}"></div>
+          </div>
+          <div class="hero-bar-meta">
+            <span>${gmHeroPct !== null ? Math.round(gmHeroPct) + '% del objetivo' : 'Sin datos'}</span>
+            <span style="color:${gmHeroColor}">${cmGM > 0 ? (gmDelta >= 0 ? '+' : '') + fmt(gmDelta) : '—'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
 
   // ── Chart 1: Budget Esperado vs Booked + Fee ──
   const totalBudgetCmp = months.reduce((s,m) => s + (m.total?.budget || 0), 0);
@@ -1114,10 +1207,10 @@ function renderGM(months, sorted) {
           label: 'GM%',
           data: chrono.map(m => m.total?.gmPct || 0),
           type: 'line',
-          borderColor: '#4d9de0',
+          borderColor: 'rgba(255,107,43,0.85)',
           borderWidth: 1.5,
           pointRadius: 3,
-          pointBackgroundColor: '#4d9de0',
+          pointBackgroundColor: 'rgba(255,107,43,0.85)',
           fill: false,
           tension: 0.3,
           yAxisID: 'y1',
@@ -1134,7 +1227,7 @@ function renderGM(months, sorted) {
       scales: {
         x: { grid: { display: false }, ticks: { color: '#666660', font: { size: 10 } } },
         y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => fmtK(v), color: '#666660', font: { size: 10 } }, border: { display: false } },
-        y1: { position: 'right', grid: { display: false }, ticks: { callback: v => v + '%', color: '#4d9de0', font: { size: 10 } }, border: { display: false }, min: 0, max: 100 }
+        y1: { position: 'right', grid: { display: false }, ticks: { callback: v => v + '%', color: '#ff6b2b', font: { size: 10 } }, border: { display: false }, min: 0, max: 100 }
       }
     }
   });

@@ -534,9 +534,9 @@ table.dt tbody tr:hover td { background: rgba(255,255,255,.025); }
   <!-- ══ PANEL GM ══ -->
   <div class="panel active" id="panel-gm">
 
+    <div id="current-month-hero"></div>
     <div class="summary-strip strip-5" id="summary-gm"></div>
     <div id="annual-progress"></div>
-    <div id="current-month-hero"></div>
 
     <div class="analysis-section">
       <div class="section-eyebrow">
@@ -714,7 +714,8 @@ function extractMonths(rows) {
       break;
     }
   }
-  const C = { budget: 1, booked: 2 + colOffset, fee: 3 + colOffset, live: 4 + colOffset, bookedFee: 5 + colOffset, cost: 6 + colOffset, gm: 7 + colOffset, gmPct: 8 + colOffset };
+  // col 2 is empty in Jan-Mar but contains "Rev Esperado" (budget+fee projection) in current month
+  const C = { budget: 1, revTarget: colOffset === 1 ? 2 : null, booked: 2 + colOffset, fee: 3 + colOffset, live: 4 + colOffset, bookedFee: 5 + colOffset, cost: 6 + colOffset, gm: 7 + colOffset, gmPct: 8 + colOffset };
 
   const months = []; let i = 0;
   while (i < rows.length) {
@@ -728,7 +729,7 @@ function extractMonths(rows) {
         const r = rows[i]; const label = (r[0] || '').trim();
         if (!label || label.match(/CLIENTES\s+\w+/i)) break;
         if (label.toUpperCase().startsWith('TOTAL')) {
-          total = { budget: parseMoney(r[C.budget]), booked: parseMoney(r[C.booked]), fee: parseMoney(r[C.fee]), live: parseMoney(r[C.live]), bookedFee: parseMoney(r[C.bookedFee]), cost: parseMoney(r[C.cost]), gm: parseMoney(r[C.gm]), gmPct: parsePercent(r[C.gmPct]) };
+          total = { budget: parseMoney(r[C.budget]), revTarget: C.revTarget !== null ? parseMoney(r[C.revTarget]) : null, booked: parseMoney(r[C.booked]), fee: parseMoney(r[C.fee]), live: parseMoney(r[C.live]), bookedFee: parseMoney(r[C.bookedFee]), cost: parseMoney(r[C.cost]), gm: parseMoney(r[C.gm]), gmPct: parsePercent(r[C.gmPct]) };
           i++; continue;
         }
         if (label === '') {
@@ -1044,7 +1045,7 @@ function renderGM(months, sorted) {
     const cmBooked = cmHero.total?.booked || 0;
     const cmFee = cmHero.total?.fee || 0;
     const cmBF = cmHero.total?.bookedFee || (cmBooked + cmFee);
-    const cmBudget = cmHero.total?.budget || 0;
+    const cmBudget = cmHero.total?.revTarget || cmHero.total?.budget || 0;
     const cmGM = cmHero.total?.gm || 0;
     const cmGMObj = cmHero.gmObj || 50000;
 

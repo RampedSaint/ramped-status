@@ -1566,7 +1566,7 @@ function filterMonths(months) {
   return months.filter(m => allowed.includes(m.name));
 }
 
-function buildQuarterSummary(months, qLabel) {
+function buildQuarterView(months, qLabel) {
   const totalBooked = months.reduce((s,m) => s + (m.total?.booked||0), 0);
   const totalFee = months.reduce((s,m) => s + (m.total?.fee||0), 0);
   const totalBF = months.reduce((s,m) => s + (m.total?.bookedFee||(m.total?.booked||0)+(m.total?.fee||0)), 0);
@@ -1574,41 +1574,185 @@ function buildQuarterSummary(months, qLabel) {
   const totalObj = months.reduce((s,m) => s + m.gmObj, 0);
   const totalBudget = months.reduce((s,m) => s + (m.total?.budget||0), 0);
   const totalLive = months.reduce((s,m) => s + (m.total?.live||0), 0);
+  const totalPending = totalBooked - totalLive;
   const gmPct = totalObj > 0 ? Math.round((totalGM/totalObj)*100) : null;
   const execPct = totalBooked > 0 ? Math.round((totalLive/totalBooked)*100) : null;
-  const gmColor = gmPct >= 100 ? 'var(--lime)' : gmPct >= 70 ? 'var(--orange)' : 'var(--red)';
+  const revPct = totalBudget > 0 ? Math.round((totalBF/totalBudget)*100) : null;
+  const gmColor = gmPct >= 100 ? 'var(--lime)' : gmPct >= 70 ? 'var(--orange)' : totalGM > 0 ? 'var(--red)' : 'var(--muted)';
+  const revColor = revPct >= 100 ? 'var(--lime)' : revPct >= 70 ? 'var(--blue)' : 'var(--orange)';
   const execColor = execPct >= 80 ? 'var(--lime)' : execPct >= 50 ? 'var(--blue)' : 'var(--orange)';
 
+  // ── Quarter highlights ──
+  // Best GM client across all months in quarter
+  const clientMap = {};
+  months.forEach(m => {
+    m.clients.forEach(c => {
+      if (!clientMap[c.name]) clientMap[c.name] = { gm: 0, booked: 0, live: 0, budget: 0, gmPctSum: 0, count: 0 };
+      clientMap[c.name].gm += (c.gm||0);
+      clientMap[c.name].booked += (c.booked||0);
+      clientMap[c.name].live += (c.live||0);
+      clientMap[c.name].budget += (c.budget||0);
+      if ((c.booked||0) > 0 && c.gmPct !== null) { clientMap[c.name].gmPctSum += c.gmPct; clientMap[c.name].count++; }
+    });
+  });
+  const clients = Object.entries(clientMap).map(([name, d]) => ({
+    name, ...d, avgGmPct: d.count > 0 ? Math.round(d.gmPctSum/d.count) : null
+  })).filter(c => c.booked > 0);
+
+  const topGM = clients.sort((a,b) => b.gm-a.gm)[0] || null;
+  const topBudget = [...clients].sort((a,b) => b.budget-a.budget)[0] || null;
+  const worstPct = [...clients].filter(c => c.avgGmPct !== null).sort((a,b) => a.avgGmPct-b.avgGmPct)[0] || null;
+  const gmGap = totalObj - totalGM;
+  const gmGapColor = gmGap <= 0 ? 'var(--lime)' : 'var(--orange)';
+
+  // Top accounts table for quarter
+  const topAccounts = [...clients].sort((a,b) => b.gm-a.gm);
+  const maxGMQ = topAccounts[0]?.gm || 1;
+
   return `
-  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:1.5rem 2rem;margin-bottom:2rem;">
-    <div style="font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem;">${qLabel} — Resumen agregado</div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;">
-      <div style="background:var(--surface2);padding:1rem;">
+  <div id="quarter-view-gm">
+    <div class="section-eyebrow"><span class="eyebrow-dot dot-lime"></span>${qLabel} — Resumen ejecutivo</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:2rem;">
+      <div class="hero-card rev">
+        <div class="hero-card-label">Revenue Esperado vs Booked + Fee</div>
+        <div class="hero-comparison">
+          <div class="hero-metric">
+            <div class="hero-metric-lbl">Rev. Esperado</div>
+            <div class="hero-metric-val" style="color:var(--text)">${fmt(totalBudget)}</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-metric">
+            <div class="hero-metric-lbl">Booked + Fee</div>
+            <div class="hero-metric-val" style="color:${revColor}">${fmt(totalBF)}</div>
+          </div>
+        </div>
+        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(revPct||0,100)}%;background:${revColor}"></div></div>
+        <div class="hero-bar-meta">
+          <span>${revPct !== null ? revPct+'% del esperado' : 'Sin datos'}</span>
+          <span style="color:${revColor}">${totalBudget > 0 ? (totalBF-totalBudget >= 0 ? '+' : '') + fmt(totalBF-totalBudget) : '—'}</span>
+        </div>
+      </div>
+      <div class="hero-card gm-hero">
+        <div class="hero-card-label">GM Objetivo vs GM Real</div>
+        <div class="hero-comparison">
+          <div class="hero-metric">
+            <div class="hero-metric-lbl">GM Objetivo</div>
+            <div class="hero-metric-val" style="color:var(--text)">${fmt(totalObj)}</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-metric">
+            <div class="hero-metric-lbl">GM Real</div>
+            <div class="hero-metric-val" style="color:${gmColor}">${totalGM > 0 ? fmt(totalGM) : '—'}</div>
+          </div>
+        </div>
+        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(gmPct||0,100)}%;background:${gmColor}"></div></div>
+        <div class="hero-bar-meta">
+          <span>${gmPct !== null ? gmPct+'% del objetivo' : 'Sin datos'}</span>
+          <span style="color:${gmColor}">${totalGM > 0 ? (totalGM-totalObj >= 0 ? '+' : '') + fmt(totalGM-totalObj) : '—'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:2rem;">
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">GM Total</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:${gmColor}">${fmt(totalGM)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">${gmPct !== null ? gmPct+'% del obj.' : '—'}</div>
       </div>
-      <div style="background:var(--surface2);padding:1rem;">
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Obj. GM</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;">${fmt(totalObj)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">${months.length} meses</div>
       </div>
-      <div style="background:var(--surface2);padding:1rem;">
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Booked + Fee</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:var(--blue)">${fmt(totalBF)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">Budget: ${fmt(totalBudget)}</div>
       </div>
-      <div style="background:var(--surface2);padding:1rem;">
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Booked</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;">${fmt(totalBooked)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">Fee: ${fmt(totalFee)}</div>
       </div>
-      <div style="background:var(--surface2);padding:1rem;">
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Live</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:var(--lime)">${fmt(totalLive)}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">${execPct !== null ? execPct+'% ejec.' : '—'}</div>
       </div>
-      <div style="background:var(--surface2);padding:1rem;">
+      <div style="background:var(--surface);padding:1rem;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Pendiente</div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:${totalPending > 0 ? 'var(--orange)' : 'var(--lime)'}">${fmt(totalPending)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">por ejecutar</div>
+      </div>
+    </div>
+
+    <div class="section-eyebrow" style="margin-top:2rem;"><span class="eyebrow-dot dot-orange"></span>Destacados del trimestre</div>
+    <div class="highlights-grid" style="margin-bottom:2rem;">
+      <div class="highlight-card gold">
+        <div class="hc-tag tag-lime">★ Mejor GM — ${qLabel}</div>
+        <div class="hc-number lime">${fmt(topGM?.gm)}</div>
+        <div class="hc-label">${topGM?.name || '—'}</div>
+        <div class="hc-sub">Mayor gross margin del trimestre</div>
+      </div>
+      <div class="highlight-card focus">
+        <div class="hc-tag tag-blue">→ Mayor cuenta — ${qLabel}</div>
+        <div class="hc-number blue">${fmt(topBudget?.budget)}</div>
+        <div class="hc-label">${topBudget?.name || '—'}</div>
+        <div class="hc-sub">Mayor budget del trimestre</div>
+      </div>
+      <div class="highlight-card alert">
+        <div class="hc-tag tag-orange">⚡ Gap GM — ${qLabel}</div>
+        <div class="hc-number" style="color:${gmGapColor}">${fmt(Math.abs(gmGap))}</div>
+        <div class="hc-label">${gmGap <= 0 ? 'Objetivo superado' : 'Por cerrar para alcanzar objetivo'}</div>
+        <div class="hc-sub">Objetivo ${fmt(totalObj)}</div>
+      </div>
+      <div class="highlight-card" style="border-color:rgba(232,64,64,.3);">
+        <div class="hc-tag" style="color:var(--red)">⚠ Menor GM% — ${qLabel}</div>
+        <div class="hc-number" style="color:var(--red)">${worstPct ? worstPct.avgGmPct+'%' : '—'}</div>
+        <div class="hc-label">${worstPct?.name || '—'}</div>
+        <div class="hc-sub">Menor margen promedio del trimestre</div>
+      </div>
+    </div>
+
+    <div class="section-eyebrow"><span class="eyebrow-dot dot-lime"></span>Top Accounts — ${qLabel}</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:2rem;">
+      <table class="dt">
+        <thead><tr><th>Cliente</th><th>Budget</th><th>Booked</th><th>GM Total</th><th>GM%</th><th>Live</th><th></th></tr></thead>
+        <tbody>${topAccounts.map(a => `
+          <tr>
+            <td><strong style="cursor:pointer;color:var(--text);text-decoration:underline;text-underline-offset:2px" onclick="openAccountModal('${a.name}')">${a.name}</strong></td>
+            <td>${fmt(a.budget)}</td>
+            <td>${fmt(a.booked)}</td>
+            <td style="color:var(--lime);font-weight:600">${fmt(a.gm)}</td>
+            <td style="color:${(a.avgGmPct||0) >= 50 ? 'var(--lime)' : (a.avgGmPct||0) >= 30 ? 'var(--orange)' : 'var(--red)'};font-weight:600">${a.avgGmPct !== null ? a.avgGmPct+'%' : '—'}</td>
+            <td>${fmt(a.live)}</td>
+            <td style="width:80px"><div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div style="height:100%;width:${Math.round((a.gm/maxGMQ)*100)}%;background:var(--lime);border-radius:2px"></div></div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="quarter-view-live">
+    <div class="section-eyebrow" style="margin-top:2rem;"><span class="eyebrow-dot dot-blue"></span>${qLabel} — Ejecución Live</div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:2rem;">
+      <div style="background:var(--surface);padding:1rem;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Total Booked</div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:var(--blue)">${fmt(totalBooked)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">comprometido</div>
+      </div>
+      <div style="background:var(--surface);padding:1rem;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Total Live</div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:var(--lime)">${fmt(totalLive)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">ejecutado</div>
+      </div>
+      <div style="background:var(--surface);padding:1rem;">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Pendiente</div>
+        <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:${totalPending > 0 ? 'var(--orange)' : 'var(--lime)'}">${fmt(totalPending)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">por ejecutar</div>
+      </div>
+      <div style="background:var(--surface);padding:1rem;">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Ejecución</div>
         <div style="font-family:var(--mono);font-size:22px;font-weight:500;color:${execColor}">${execPct !== null ? execPct+'%' : '—'}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px;">booked → live</div>
@@ -1625,25 +1769,69 @@ function renderAll(allMonths) {
   }
   const sorted = sortMonthsDisplay(months);
   const rollover = computeRollover(allMonths);
+  const isQuarter = currentFilter !== 'all';
 
   // Destroy existing charts before re-rendering
   Object.values(Chart.instances || {}).forEach(c => c.destroy());
 
-  // Inject quarter summary if a Q is selected
+  // Show/hide sections based on mode
+  const heroEl = document.getElementById('current-month-hero');
+  const annualEl = document.getElementById('annual-progress');
+  const forecastSection = document.querySelector('.forecast-section');
+  const monthsSectionGM = document.querySelector('#panel-gm .months-section');
+  const monthsSectionLive = document.querySelector('#panel-live .months-section');
   const qSummaryEl = document.getElementById('quarter-summary');
-  if (qSummaryEl) {
-    if (currentFilter !== 'all') {
-      const qLabel = currentFilter.toUpperCase();
-      qSummaryEl.innerHTML = buildQuarterSummary(months, qLabel);
-      qSummaryEl.style.display = 'block';
-    } else {
-      qSummaryEl.innerHTML = '';
-      qSummaryEl.style.display = 'none';
-    }
-  }
 
-  renderGM(months, sorted);
-  renderLive(months, sorted, rollover);
+  if (isQuarter) {
+    // QUARTER MODE: show only the quarter executive view, hide everything else
+    if (heroEl) heroEl.innerHTML = '';
+    if (annualEl) annualEl.innerHTML = '';
+    if (forecastSection) forecastSection.style.display = 'none';
+    if (monthsSectionGM) monthsSectionGM.style.display = 'none';
+    if (monthsSectionLive) monthsSectionLive.style.display = 'none';
+
+    const qLabel = currentFilter.toUpperCase();
+    if (qSummaryEl) {
+      qSummaryEl.innerHTML = buildQuarterView(months, qLabel);
+      qSummaryEl.style.display = 'block';
+    }
+
+    // For quarter mode, render GM/Live panels normally so charts still work,
+    // but sections above are hidden — we skip re-render of summary strip
+    // and only need the comparison charts
+    renderGM(months, sorted);
+    renderLive(months, sorted, rollover);
+
+    // After renderGM/Live, hide their sections that we don't want in quarter view
+    document.getElementById('summary-gm').style.display = 'none';
+    document.getElementById('summary-live').style.display = 'none';
+    const highlightsGM = document.querySelector('#panel-gm .highlights-section');
+    const highlightsLive = document.querySelector('#panel-live .highlights-section');
+    const accountsSection = document.querySelector('.accounts-section');
+    if (highlightsGM) highlightsGM.style.display = 'none';
+    if (highlightsLive) highlightsLive.style.display = 'none';
+    if (accountsSection) accountsSection.style.display = 'none';
+
+  } else {
+    // YEAR MODE: show everything normally
+    if (heroEl) heroEl.style.display = '';
+    if (annualEl) annualEl.style.display = '';
+    if (forecastSection) forecastSection.style.display = '';
+    if (monthsSectionGM) monthsSectionGM.style.display = '';
+    if (monthsSectionLive) monthsSectionLive.style.display = '';
+    if (qSummaryEl) { qSummaryEl.innerHTML = ''; qSummaryEl.style.display = 'none'; }
+    document.getElementById('summary-gm').style.display = '';
+    document.getElementById('summary-live').style.display = '';
+    const highlightsGM = document.querySelector('#panel-gm .highlights-section');
+    const highlightsLive = document.querySelector('#panel-live .highlights-section');
+    const accountsSection = document.querySelector('.accounts-section');
+    if (highlightsGM) highlightsGM.style.display = '';
+    if (highlightsLive) highlightsLive.style.display = '';
+    if (accountsSection) accountsSection.style.display = '';
+
+    renderGM(months, sorted);
+    renderLive(months, sorted, rollover);
+  }
 }
 
 /* ── MAIN ── */

@@ -1056,9 +1056,11 @@ function renderGM(months, sorted) {
 
     const revPct = cmBudget > 0 ? (cmBF / cmBudget) * 100 : null;
     const gmHeroPct = cmGMObj > 0 ? (cmGM / cmGMObj) * 100 : null;
+    const gmMarginPct = cmBF > 0 ? (cmGM / cmBF) * 100 : null;
 
     const revColor = revPct === null ? 'var(--muted)' : revPct >= 100 ? 'var(--lime)' : revPct >= 70 ? 'var(--blue)' : 'var(--orange)';
     const gmHeroColor = gmHeroPct === null ? 'var(--muted)' : gmHeroPct >= 100 ? 'var(--lime)' : gmHeroPct >= 70 ? 'var(--orange)' : cmGM > 0 ? 'var(--red)' : 'var(--muted)';
+    const gmMarginColor = gmMarginPct === null ? 'var(--muted)' : gmMarginPct >= 45 ? 'var(--lime)' : gmMarginPct >= 30 ? 'var(--blue)' : 'var(--orange)';
 
     const revDelta = cmBF - cmBudget;
     const gmDelta = cmGM - cmGMObj;
@@ -1092,7 +1094,7 @@ function renderGM(months, sorted) {
           </div>
         </div>
         <div class="hero-card gm-hero">
-          <div class="hero-card-label">GM Objetivo vs GM Real</div>
+          <div class="hero-card-label">GM Objetivo / GM Real / % Margen</div>
           <div class="hero-comparison">
             <div class="hero-metric">
               <div class="hero-metric-lbl">GM Objetivo</div>
@@ -1103,13 +1105,18 @@ function renderGM(months, sorted) {
               <div class="hero-metric-lbl">GM Real</div>
               <div class="hero-metric-val" style="color:${gmHeroColor}">${cmGM > 0 ? fmt(cmGM) : '—'}</div>
             </div>
+            <div class="hero-divider"></div>
+            <div class="hero-metric">
+              <div class="hero-metric-lbl">% Margen</div>
+              <div class="hero-metric-val" style="color:${gmMarginColor};font-size:22px">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'%' : '—'}</div>
+            </div>
           </div>
           <div class="hero-bar-track">
-            <div class="hero-bar-fill" style="width:${Math.min(gmHeroPct||0,100)}%;background:${gmHeroColor}"></div>
+            <div class="hero-bar-fill" style="width:${Math.min(gmMarginPct||0,100)}%;background:${gmMarginColor}"></div>
           </div>
           <div class="hero-bar-meta">
-            <span>${gmHeroPct !== null ? Math.round(gmHeroPct) + '% del objetivo' : 'Sin datos'}</span>
-            <span style="color:${gmHeroColor}">${cmGM > 0 ? (gmDelta >= 0 ? '+' : '') + fmt(gmDelta) : '—'}</span>
+            <span style="color:${gmMarginColor}">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'% margin sobre Booked + Fee' : 'Sin datos'}</span>
+            <span style="color:var(--muted)">${cmGM > 0 ? (gmDelta >= 0 ? '+' : '') + fmt(gmDelta) + ' vs obj.' : '—'}</span>
           </div>
         </div>
       </div>
@@ -1637,7 +1644,7 @@ function buildQuarterView(months, qLabel) {
         </div>
       </div>
       <div class="hero-card gm-hero">
-        <div class="hero-card-label">GM Objetivo vs GM Real</div>
+        <div class="hero-card-label">GM Objetivo / GM Real / % Margen</div>
         <div class="hero-comparison">
           <div class="hero-metric">
             <div class="hero-metric-lbl">GM Objetivo</div>
@@ -1650,14 +1657,14 @@ function buildQuarterView(months, qLabel) {
           </div>
           <div class="hero-divider"></div>
           <div class="hero-metric">
-            <div class="hero-metric-lbl">GM %</div>
-            <div class="hero-metric-val" style="color:${gmColor};font-size:22px">${totalGM > 0 && totalObj > 0 ? gmPct+'%' : '—'}</div>
+            <div class="hero-metric-lbl">% Margen</div>
+            <div class="hero-metric-val" style="color:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'};font-size:22px">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'%' : '—'}</div>
           </div>
         </div>
-        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(gmPct||0,100)}%;background:${gmColor}"></div></div>
+        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(totalBF > 0 ? totalGM/totalBF*100 : 0, 100)}%;background:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'}"></div></div>
         <div class="hero-bar-meta">
-          <span>${gmPct !== null ? gmPct+'% del objetivo' : 'Sin datos'}</span>
-          <span style="color:${gmColor}">${totalGM > 0 ? (totalGM-totalObj >= 0 ? '+' : '') + fmt(totalGM-totalObj) : '—'}</span>
+          <span style="color:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'}">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'% margin sobre Booked + Fee' : 'Sin datos'}</span>
+          <span style="color:var(--muted)">${totalGM > 0 ? (totalGM-totalObj >= 0 ? '+' : '') + fmt(totalGM-totalObj) + ' vs obj.' : '—'}</span>
         </div>
       </div>
     </div>

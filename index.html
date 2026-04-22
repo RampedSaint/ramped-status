@@ -1108,15 +1108,15 @@ function renderGM(months, sorted) {
             <div class="hero-divider"></div>
             <div class="hero-metric">
               <div class="hero-metric-lbl">% Margen</div>
-              <div class="hero-metric-val" style="color:${gmMarginColor};font-size:22px">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'%' : '—'}</div>
+              <div class="hero-metric-val" style="color:${gmHeroColor}">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'%' : '—'}</div>
             </div>
           </div>
           <div class="hero-bar-track">
-            <div class="hero-bar-fill" style="width:${Math.min(gmMarginPct||0,100)}%;background:${gmMarginColor}"></div>
+            <div class="hero-bar-fill" style="width:${Math.min(gmHeroPct||0,100)}%;background:${gmHeroColor}"></div>
           </div>
           <div class="hero-bar-meta">
-            <span style="color:${gmMarginColor}">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'% margin sobre Booked + Fee' : 'Sin datos'}</span>
-            <span style="color:var(--muted)">${cmGM > 0 ? (gmDelta >= 0 ? '+' : '') + fmt(gmDelta) + ' vs obj.' : '—'}</span>
+            <span style="color:${gmHeroColor}">${gmHeroPct !== null ? Math.round(gmHeroPct)+'% vs objetivo' : 'Sin datos'}</span>
+            <span style="color:${gmMarginColor}">${gmMarginPct !== null ? gmMarginPct.toFixed(1)+'% margin s/ B+F' : '—'}</span>
           </div>
         </div>
       </div>
@@ -1658,13 +1658,13 @@ function buildQuarterView(months, qLabel) {
           <div class="hero-divider"></div>
           <div class="hero-metric">
             <div class="hero-metric-lbl">% Margen</div>
-            <div class="hero-metric-val" style="color:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'};font-size:22px">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'%' : '—'}</div>
+            <div class="hero-metric-val" style="color:${gmColor}">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'%' : '—'}</div>
           </div>
         </div>
-        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(totalBF > 0 ? totalGM/totalBF*100 : 0, 100)}%;background:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'}"></div></div>
+        <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(gmPct||0,100)}%;background:${gmColor}"></div></div>
         <div class="hero-bar-meta">
-          <span style="color:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'}">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'% margin sobre Booked + Fee' : 'Sin datos'}</span>
-          <span style="color:var(--muted)">${totalGM > 0 ? (totalGM-totalObj >= 0 ? '+' : '') + fmt(totalGM-totalObj) + ' vs obj.' : '—'}</span>
+          <span style="color:${gmColor}">${gmPct !== null ? gmPct+'% vs objetivo' : 'Sin datos'}</span>
+          <span style="color:${totalBF > 0 ? (totalGM/totalBF*100 >= 45 ? 'var(--lime)' : totalGM/totalBF*100 >= 30 ? 'var(--blue)' : 'var(--orange)') : 'var(--muted)'}">${totalBF > 0 ? (totalGM/totalBF*100).toFixed(1)+'% margin s/ B+F' : '—'}</span>
         </div>
       </div>
     </div>

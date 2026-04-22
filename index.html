@@ -801,6 +801,9 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('active-gm','active-live'); });
   document.getElementById('panel-' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active-' + tab);
+  // Q filters only apply to GM panel
+  const filterBar = document.getElementById('filterBar');
+  if (filterBar) filterBar.style.display = tab === 'live' ? 'none' : '';
 }
 
 function findTopClient(clients, key) {
@@ -1644,6 +1647,11 @@ function buildQuarterView(months, qLabel) {
           <div class="hero-metric">
             <div class="hero-metric-lbl">GM Real</div>
             <div class="hero-metric-val" style="color:${gmColor}">${totalGM > 0 ? fmt(totalGM) : '—'}</div>
+          </div>
+          <div class="hero-divider"></div>
+          <div class="hero-metric">
+            <div class="hero-metric-lbl">GM %</div>
+            <div class="hero-metric-val" style="color:${gmColor};font-size:22px">${totalGM > 0 && totalObj > 0 ? gmPct+'%' : '—'}</div>
           </div>
         </div>
         <div class="hero-bar-track"><div class="hero-bar-fill" style="width:${Math.min(gmPct||0,100)}%;background:${gmColor}"></div></div>

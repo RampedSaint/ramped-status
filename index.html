@@ -1245,39 +1245,45 @@ function renderGM(months, sorted) {
     }
   });
 
-  // Highlights
-  const prevMonth = months.find(m => m.name === PREV_MONTH);
+  // Highlights — derived from data, not system clock
+  // "current" = last month with data in sheet; "prev" = second-to-last with data
+  const monthsWithData = months.filter(m => (m.total?.booked || 0) > 0 || (m.total?.gm || 0) > 0);
+  const dataCurrentMonth = monthsWithData.length > 0 ? monthsWithData[monthsWithData.length - 1] : null;
+  const dataPrevMonth = monthsWithData.length > 1 ? monthsWithData[monthsWithData.length - 2] : null;
 
-  const topGM = findTopClient(prevMonth?.clients, 'gm');
-  const topBudget = findTopClient(currentMonth?.clients, 'budget');
+  const topGM = findTopClient(dataPrevMonth?.clients, 'gm');
+  const topBudget = findTopClient(dataCurrentMonth?.clients, 'budget');
 
-  const gmGap = currentMonth ? currentMonth.gmObj - (currentMonth.total?.gm || 0) : null;
+  const gmGap = dataCurrentMonth ? dataCurrentMonth.gmObj - (dataCurrentMonth.total?.gm || 0) : null;
 
-  const worstGMPct = prevMonth?.clients
+  const worstGMPct = dataPrevMonth?.clients
     .filter(c => (c.booked || 0) > 0 && c.gmPct !== null)
     .sort((a, b) => (a.gmPct || 0) - (b.gmPct || 0))[0] || null;
 
+  const hlCurrentName = dataCurrentMonth?.name || CURRENT_MONTH;
+  const hlPrevName = dataPrevMonth?.name || PREV_MONTH;
+
   document.getElementById('highlights-gm').innerHTML = `
     <div class="highlight-card gold">
-      <div class="hc-tag tag-lime">★ Mejor GM — ${PREV_MONTH}</div>
+      <div class="hc-tag tag-lime">★ Mejor GM — ${hlPrevName}</div>
       <div class="hc-number lime">${fmt(topGM.val)}</div>
       <div class="hc-label">${topGM.name || '—'}</div>
       <div class="hc-sub">Mayor gross margin del mes cerrado</div>
     </div>
     <div class="highlight-card focus">
-      <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
+      <div class="hc-tag tag-blue">→ Foco — ${hlCurrentName}</div>
       <div class="hc-number blue">${fmt(topBudget.val)}</div>
       <div class="hc-label">${topBudget.name || '—'}</div>
       <div class="hc-sub">Mayor budget esperado este mes</div>
     </div>
     <div class="highlight-card alert">
-      <div class="hc-tag tag-orange">⚡ Gap GM — ${CURRENT_MONTH}</div>
-      <div class="hc-number orange">${gmGap !== null ? fmt(gmGap) : '—'}</div>
-      <div class="hc-label">Por cerrar para alcanzar objetivo</div>
-      <div class="hc-sub">Objetivo ${fmt(currentMonth?.gmObj)}</div>
+      <div class="hc-tag tag-orange">⚡ Gap GM — ${hlCurrentName}</div>
+      <div class="hc-number orange">${gmGap !== null && gmGap > 0 ? fmt(gmGap) : gmGap !== null && gmGap <= 0 ? fmt(Math.abs(gmGap)) : '—'}</div>
+      <div class="hc-label">${gmGap !== null && gmGap <= 0 ? 'Objetivo superado' : 'Por cerrar para alcanzar objetivo'}</div>
+      <div class="hc-sub">Objetivo ${fmt(dataCurrentMonth?.gmObj)}</div>
     </div>
     <div class="highlight-card" style="border-color:rgba(232,64,64,.3)">
-      <div class="hc-tag" style="color:var(--red)">⚠ Menor GM% — ${PREV_MONTH}</div>
+      <div class="hc-tag" style="color:var(--red)">⚠ Menor GM% — ${hlPrevName}</div>
       <div class="hc-number" style="color:var(--red)">${worstGMPct ? worstGMPct.gmPct + '%' : '—'}</div>
       <div class="hc-label">${worstGMPct?.name || '—'}</div>
       <div class="hc-sub">Peor margen del mes cerrado</div>
@@ -1371,8 +1377,12 @@ function renderGM(months, sorted) {
 /* ── RENDER LIVE ── */
 function renderLive(months, sorted, rollover) {
   const chrono = sortMonthsDisplay(months);
-  const prevMonth = months.find(m => m.name === PREV_MONTH);
-  const currentMonth = months.find(m => m.name === CURRENT_MONTH);
+  // Data-driven: use last months with actual data, not system clock
+  const liveMonthsWithData = months.filter(m => (m.total?.booked || 0) > 0);
+  const prevMonth = liveMonthsWithData.length > 1 ? liveMonthsWithData[liveMonthsWithData.length - 2] : null;
+  const currentMonth = liveMonthsWithData.length > 0 ? liveMonthsWithData[liveMonthsWithData.length - 1] : null;
+  const livePrevName = prevMonth?.name || PREV_MONTH;
+  const liveCurrentName = currentMonth?.name || CURRENT_MONTH;
   const completedMonths = months.filter(m => m.total?.booked > 0);
   const totalBooked = completedMonths.reduce((s,m) => s + (m.total?.booked || 0), 0);
   const totalLive = completedMonths.reduce((s,m) => s + (m.total?.live || 0), 0);
@@ -1381,7 +1391,7 @@ function renderLive(months, sorted, rollover) {
 
   // Month cards
   document.getElementById('months-live').innerHTML = sorted.map(m => {
-    const isCurrent = m.name === CURRENT_MONTH;
+    const isCurrent = m.name === (currentMonth?.name || CURRENT_MONTH);
     const booked = m.total?.booked || null;
     const live = m.total?.live || null;
     const ep = booked > 0 && live !== null ? (live / booked) * 100 : null;
@@ -1540,7 +1550,7 @@ function renderLive(months, sorted, rollover) {
 
   document.getElementById('highlights-live').innerHTML = `
     <div class="highlight-card gold">
-      <div class="hc-tag tag-lime">★ Mayor Live — ${PREV_MONTH}</div>
+      <div class="hc-tag tag-lime">★ Mayor Live — ${livePrevName}</div>
       <div class="hc-number lime">${fmt(topLive.val)}</div>
       <div class="hc-label">${topLive.name || '—'}</div>
       <div class="hc-sub">Mayor ejecución de contenidos del mes</div>
@@ -1552,7 +1562,7 @@ function renderLive(months, sorted, rollover) {
       <div class="hc-sub">Arrastre de meses anteriores</div>
     </div>
     <div class="highlight-card focus">
-      <div class="hc-tag tag-blue">→ Foco — ${CURRENT_MONTH}</div>
+      <div class="hc-tag tag-blue">→ Foco — ${liveCurrentName}</div>
       <div class="hc-number blue">${fmt(topBudget.val)}</div>
       <div class="hc-label">${topBudget.name || '—'}</div>
       <div class="hc-sub">Mayor presupuesto a ejecutar este mes</div>
